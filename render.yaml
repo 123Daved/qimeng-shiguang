@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: qimeng-shiguang
+    runtime: node
+    buildCommand: node -e "console.log(process.version)"
+    startCommand: npm start
+    envVars:
+      - key: LLM_BASE_URL
+        sync: false
+      - key: LLM_MODEL
+        sync: false
+      - key: LLM_API_KEY
+        sync: false
+      - key: DEMO_MODE
+        sync: false
+      - key: MODEL_NOTICE
+        sync: false
+      - key: PUBLIC_BASE_URL
+        sync: false
