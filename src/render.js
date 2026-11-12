@@ -122,6 +122,7 @@ function renderSite(options) {
   <title>${escapeHtml(profile.name || "未命名")} · 憩梦时光</title>
   <meta name="description" content="${escapeHtml(profile.tagline || profile.about || "个人网站")}">
   ${pageUrl ? `<link rel="canonical" href="${escapeHtml(options.absoluteUrl || pageUrl)}">` : ""}
+  <meta name="theme-color" content="${escapeHtml(theme.accent)}">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
   <script type="application/ld+json">${ld}</script>
@@ -131,23 +132,23 @@ function renderSite(options) {
   ${example}
   ${preview}
   <header class="hero ${changed.has("theme") || changed.has("accent") || changed.has("name") || changed.has("about") ? "is-changed" : ""}">
-    <p class="brand">${MARK}<span>憩梦时光</span></p>
-    <h1>${escapeHtml(profile.name || "未命名")}</h1>
-    ${profile.title ? `<p class="title">${escapeHtml(profile.title)}</p>` : ""}
-    ${profile.tagline ? `<p class="tagline">${escapeHtml(profile.tagline)}</p>` : ""}
-    ${profile.city ? `<p class="city">${escapeHtml(profile.city)}</p>` : ""}
-    ${tags ? `<ul class="tags">${tags}</ul>` : ""}
+    <p class="brand" data-reveal="fade">${MARK}<span>憩梦时光</span></p>
+    <h1 data-reveal style="--i:1">${escapeHtml(profile.name || "未命名")}</h1>
+    ${profile.title ? `<p class="title" data-reveal style="--i:2">${escapeHtml(profile.title)}</p>` : ""}
+    ${profile.tagline ? `<p class="tagline" data-reveal style="--i:3">${escapeHtml(profile.tagline)}</p>` : ""}
+    ${profile.city ? `<p class="city" data-reveal style="--i:4">${icon("map")}${escapeHtml(profile.city)}</p>` : ""}
+    ${tags ? `<ul class="tags" data-reveal style="--i:5">${tags}</ul>` : ""}
   </header>
   <main>
-    <section id="services" class="${sectionClass("services", changed)}" data-section="services">
+    <section id="services" class="${sectionClass("services", changed)}" data-section="services" data-reveal>
       <h2>我能提供</h2>
       ${services || "<p class=\"empty\">还没有写下服务。</p>"}
     </section>
-    ${profile.about ? `<section class="${sectionClass("about", changed)}" data-section="about"><h2>关于我</h2><p>${escapeHtml(profile.about)}</p></section>` : ""}
-    ${highlights ? `<section class="${sectionClass("highlights", changed)}" data-section="highlights"><h2>经历与作品</h2>${highlights}</section>` : ""}
-    ${profile.story ? `<section class="${sectionClass("story", changed)}" data-section="story"><h2>我的故事</h2><p>${escapeHtml(profile.story)}</p></section>` : ""}
-    ${seeking ? `<section class="${sectionClass("seeking", changed)}" data-section="seeking"><h2>我在寻找</h2><ul>${seeking}</ul></section>` : ""}
-    <section class="${sectionClass("contacts", changed)}" data-section="contacts">
+    ${profile.about ? `<section class="${sectionClass("about", changed)}" data-section="about" data-reveal><h2>关于我</h2><p>${escapeHtml(profile.about)}</p></section>` : ""}
+    ${highlights ? `<section class="${sectionClass("highlights", changed)}" data-section="highlights" data-reveal><h2>经历与作品</h2>${highlights}</section>` : ""}
+    ${profile.story ? `<section class="${sectionClass("story", changed)}" data-section="story" data-reveal><h2>我的故事</h2><p>${escapeHtml(profile.story)}</p></section>` : ""}
+    ${seeking ? `<section class="${sectionClass("seeking", changed)}" data-section="seeking" data-reveal><h2>我在寻找</h2><ul>${seeking}</ul></section>` : ""}
+    <section class="${sectionClass("contacts", changed)}" data-section="contacts" data-reveal>
       <h2>联系我</h2>
       <div class="contacts">${contactHtml || "<p class=\"empty\">还没有留下联系方式。</p>"}</div>
     </section>
@@ -177,6 +178,7 @@ function renderSite(options) {
     </form>
   </section>
   <script>window.__QD_SITE__=${boot};</script>
+  <script src="/motion.js"></script>
   <script src="/site.js"></script>
 </body>
 </html>`;

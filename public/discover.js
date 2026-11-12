@@ -4,13 +4,21 @@ function icon(name) {
   return (window.QDIcons && window.QDIcons.icon(name)) || "";
 }
 
-function card(person) {
+function card(person, index) {
   const link = document.createElement("a");
   link.className = "person";
   link.href = person.url;
+  link.setAttribute("data-reveal", "");
+  link.style.setProperty("--i", String(Math.min(index, 6)));
+  const head = document.createElement("div");
+  head.className = "person-head";
   const name = document.createElement("h2");
   name.textContent = person.name;
-  link.append(name);
+  const go = document.createElement("span");
+  go.className = "person-go";
+  go.innerHTML = `打开网站${icon("arrow")}`;
+  head.append(name, go);
+  link.append(head);
   const title = document.createElement("p");
   title.className = "person-meta";
   title.textContent = [person.title, person.city].filter(Boolean).join(" · ");
@@ -54,7 +62,11 @@ async function search(q) {
   const data = await response.json();
   const results = document.querySelector("#results");
   const empty = document.querySelector("#empty");
+  const count = document.querySelector("#result-count");
   results.replaceChildren();
+  count.textContent = data.results.length
+    ? (q ? `「${q}」找到 ${data.results.length} 位` : `已发布 ${data.results.length} 位`)
+    : "";
   if (!data.results.length) {
     setEmpty(empty, q
       ? `没有找到和「${q}」匹配的人。换个词试试，比如「民宿」或「双月湾」。`
@@ -62,7 +74,8 @@ async function search(q) {
     return;
   }
   empty.classList.add("hidden");
-  for (const person of data.results) results.append(card(person));
+  data.results.forEach((person, index) => results.append(card(person, index)));
+  if (window.QDMotion) window.QDMotion.observe(results);
 }
 
 fetch("/api/config").then((response) => response.json()).then((config) => {
@@ -80,5 +93,11 @@ document.querySelector("#search-form").addEventListener("submit", (event) => {
   else next.searchParams.delete("q");
   history.replaceState(null, "", next);
   search(q);
+});
+document.querySelectorAll("#suggest [data-q]").forEach((chip) => {
+  chip.addEventListener("click", () => {
+    document.querySelector("#q").value = chip.dataset.q;
+    document.querySelector("#search-form").requestSubmit();
+  });
 });
 search(initial);

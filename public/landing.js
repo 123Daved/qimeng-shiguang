@@ -18,10 +18,8 @@ async function start(mode, button) {
       body: JSON.stringify({ type: "footer_cta_click", slug: params.get("ref") || "" }),
     });
   }
-  const startBtn = document.querySelector("#start");
-  const demoBtn = document.querySelector("#demo");
-  startBtn.disabled = true;
-  demoBtn.disabled = true;
+  const all = Array.from(document.querySelectorAll("[data-start]"));
+  all.forEach((node) => { node.disabled = true; });
   const original = button.innerHTML;
   button.textContent = "正在创建";
   try {
@@ -34,22 +32,21 @@ async function start(mode, button) {
     if (!response.ok) {
       window.alert(data.error || "没有创建成功，请再试一次。");
       button.innerHTML = original;
-      startBtn.disabled = false;
-      demoBtn.disabled = false;
+      all.forEach((node) => { node.disabled = false; });
       return;
     }
     location.href = data.workbenchUrl;
   } catch {
     window.alert("网络中断了，请再试一次。");
     button.innerHTML = original;
-    startBtn.disabled = false;
-    demoBtn.disabled = false;
+    all.forEach((node) => { node.disabled = false; });
   }
 }
 
 readConfig().catch(() => {});
-document.querySelector("#start").addEventListener("click", (event) => start("interview", event.currentTarget));
-document.querySelector("#demo").addEventListener("click", (event) => start("demo", event.currentTarget));
+document.querySelectorAll("[data-start]").forEach((node) => {
+  node.addEventListener("click", (event) => start(node.dataset.start === "demo" ? "demo" : "interview", event.currentTarget));
+});
 if (new URLSearchParams(location.search).get("from") === "footer") {
   fetch("/api/events", {
     method: "POST",

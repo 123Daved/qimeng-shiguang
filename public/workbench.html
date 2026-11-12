@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>制作网站 · 憩梦时光</title>
+  <meta name="theme-color" content="#A9532F">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
 </head>
@@ -12,39 +13,45 @@
   <header class="topbar">
     <div class="wrap">
       <a class="wordmark" href="/"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6" fill="#A9532F"/><circle cx="12" cy="8.2" r="1.5" fill="#FFFFFF"/><path d="M6 14.5c2.2-3.2 4-4.8 6-4.8s3.8 1.6 6 4.8" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16.8h10" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round"/></svg>憩梦时光</a>
-      <nav class="nav">
+      <nav class="nav" aria-label="主导航">
         <a href="/">首页</a>
         <a href="/workbench.html" aria-current="page">制作</a>
         <a href="/discover.html">发现</a>
       </nav>
     </div>
   </header>
-  <main class="wrap stack workbench">
-    <p class="banner hidden" id="banner" role="status"></p>
-    <section class="page-head">
-      <h1>制作你的网站</h1>
-      <p class="muted">一次只回答一个问题。导入的原文不会公开。</p>
+  <section class="page-band">
+    <div class="wrap">
+      <p class="eyebrow" data-reveal>工作台</p>
+      <h1 data-reveal style="--i:1">制作你的网站</h1>
+      <p class="muted" data-reveal style="--i:2">一次只回答一个问题。导入的原文不会公开。</p>
+      <div class="progress-meter" data-reveal style="--i:3">
+        <div class="progress-track" role="progressbar" aria-label="话题进度" aria-valuemin="0" aria-valuemax="6" aria-valuenow="0" id="progress-track"><span id="progress-bar"></span></div>
+        <strong id="progress-count">0 / 6</strong>
+      </div>
       <ol class="progress" id="progress" aria-label="六个话题的进度"></ol>
-    </section>
-    <div class="grid-2">
-      <section class="stack">
+    </div>
+  </section>
+  <main class="wrap workbench">
+    <p class="banner hidden" id="banner" role="status"></p>
+    <div class="wb-layout">
+      <div class="wb-flow">
+        <p class="section-label">对话</p>
         <div class="chat" id="chat" aria-live="polite"></div>
         <form id="answer-form" class="panel">
           <label for="answer">你的回答</label>
           <div class="composer">
             <textarea id="answer" name="answer" maxlength="4000" placeholder="用平时说话的方式写就好"></textarea>
-            <button class="primary" id="send" type="submit">发送</button>
+            <button class="primary" id="send" type="submit"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 12L19 5.5 14.5 19l-2.2-6.3z"/><path d="M12.3 12.7L19 5.5"/></svg>发送</button>
           </div>
         </form>
         <section class="panel" id="import-panel">
-          <div class="panel-head">
-            <h2>导入 AI 记忆</h2>
-          </div>
+          <h2><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 16V8"/><path d="M8.5 11.5L12 8l3.5 3.5"/><path d="M5 18h14"/></svg>导入 AI 记忆</h2>
           <p class="muted">把提问词复制到 DeepSeek、豆包、Kimi、Codex、Claude 或 Gemini，让它总结「你对我的了解」，再粘贴回来。简历和小红书简介也可以。</p>
           <label for="import-prompt">提问词</label>
           <textarea id="import-prompt" readonly></textarea>
           <div class="actions">
-            <button class="secondary" id="copy-prompt" type="button">复制提问词</button>
+            <button class="secondary" id="copy-prompt" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="8" y="8" width="10" height="11" rx="1.5"/><path d="M6 16V6.5A1.5 1.5 0 0 1 7.5 5H15"/></svg>复制提问词</button>
             <span id="copy-state" class="demo-note" role="status"></span>
           </div>
           <label for="import-text">粘贴对方的总结</label>
@@ -53,22 +60,21 @@
             <button class="primary" id="import-submit" type="button">导入并继续</button>
           </div>
         </section>
-      </section>
-      <aside class="stack">
+        <p class="section-label">生成与修改</p>
         <section class="panel" id="profile-panel">
-          <h2>档案</h2>
+          <h2><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 4.5h7l5 5V19a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 19V6A1.5 1.5 0 0 1 7 4.5z"/><path d="M14 4.5V10h5.5"/></svg>档案</h2>
           <div id="profile-cards"><p class="muted profile-empty">生成之后，这里会按栏目显示档案。</p></div>
           <div class="actions">
             <button class="primary" id="generate" type="button">生成网站</button>
           </div>
         </section>
         <section class="panel" id="theme-panel">
-          <h2>网站风格</h2>
+          <h2><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="7"/><circle cx="9" cy="10" r=".8" fill="currentColor" stroke="none"/><circle cx="12.5" cy="8.5" r=".8" fill="currentColor" stroke="none"/><circle cx="15" cy="11" r=".8" fill="currentColor" stroke="none"/></svg>网站风格</h2>
           <p class="muted">三套模板，点一下即可更换。内容不会被改写。</p>
           <div class="theme-picks" id="theme-picks"></div>
         </section>
         <section class="panel" id="edit-panel">
-          <h2>一句话修改</h2>
+          <h2><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20h4l10-10-4-4L4 16z"/><path d="M12.5 7.5l4 4"/></svg>一句话修改</h2>
           <p class="muted">先选一条建议，也可以自己写。</p>
           <div class="chips" id="edit-chips"></div>
           <form id="edit-form">
@@ -77,8 +83,8 @@
             <div class="actions"><button class="secondary" id="edit" type="submit">按这句话修改</button></div>
           </form>
         </section>
-        <section class="panel">
-          <h2>发布</h2>
+        <section class="panel" id="publish-panel">
+          <h2><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="18" cy="6" r="2.2"/><circle cx="6" cy="12" r="2.2"/><circle cx="18" cy="18" r="2.2"/><path d="M8 11.2l8-4.4M8 12.8l8 4.4"/></svg>发布</h2>
           <form id="publish-form">
             <label for="slug">网址名</label>
             <input id="slug" name="slug" maxlength="24" placeholder="默认用你的名字">
@@ -87,16 +93,25 @@
           <div id="publish-result" class="publish-success hidden"></div>
         </section>
         <p class="muted" id="edit-link"></p>
-      </aside>
-    </div>
-    <section class="stack" id="preview-section">
-      <h2>网站预览</h2>
-      <div class="preview-frame" id="preview-frame">
-        <div class="preview-chrome" aria-hidden="true"><span></span><span></span><span></span> 预览</div>
-        <iframe class="preview" id="preview" title="网站预览" hidden></iframe>
-        <p class="muted" id="preview-empty">生成网站之后，这里会显示预览。</p>
       </div>
-    </section>
+      <section class="wb-preview" id="preview-section" aria-labelledby="preview-title">
+        <p class="section-label" id="preview-title">网站预览</p>
+        <div class="preview-frame" id="preview-frame">
+          <div class="preview-chrome" aria-hidden="true"><span></span><span></span><span></span> 预览</div>
+          <iframe class="preview" id="preview" title="网站预览" hidden></iframe>
+          <div class="preview-skeleton" aria-hidden="true">
+            <span class="skeleton sm"></span>
+            <span class="skeleton lg"></span>
+            <span class="skeleton md"></span>
+            <span class="skeleton block"></span>
+            <span class="skeleton block"></span>
+            <span class="skeleton md"></span>
+            <p class="skeleton-caption">正在整理档案并生成网页</p>
+          </div>
+          <p class="muted" id="preview-empty">生成网站之后，这里会显示预览。</p>
+        </div>
+      </section>
+    </div>
   </main>
   <footer class="app-footer">
     <div class="wrap">
@@ -105,6 +120,7 @@
     </div>
   </footer>
   <script src="/icons.js"></script>
+  <script src="/motion.js"></script>
   <script src="/workbench.js"></script>
 </body>
 </html>

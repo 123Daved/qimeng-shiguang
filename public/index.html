@@ -5,81 +5,168 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>憩梦时光</title>
   <meta name="description" content="聊 10 分钟，AI 帮你生成一个既能被人找到、也能被 AI 找到的个人网站。">
+  <meta name="theme-color" content="#A9532F">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="preload" as="image" href="/img/hero-seaside.webp" type="image/webp" fetchpriority="high">
   <link rel="stylesheet" href="/styles.css">
 </head>
-<body>
+<body class="landing">
   <a class="skip" href="#main">跳到主要内容</a>
-  <header class="topbar">
+  <header class="topbar topbar--overlay">
     <div class="wrap">
       <a class="wordmark" href="/"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6" fill="#A9532F"/><circle cx="12" cy="8.2" r="1.5" fill="#FFFFFF"/><path d="M6 14.5c2.2-3.2 4-4.8 6-4.8s3.8 1.6 6 4.8" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16.8h10" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round"/></svg>憩梦时光</a>
-      <nav class="nav">
+      <nav class="nav" aria-label="主导航">
         <a href="/" aria-current="page">首页</a>
         <a href="/discover.html">发现</a>
       </nav>
     </div>
   </header>
-  <main id="main" class="wrap">
-    <section class="hero-home">
-      <div class="hero-copy">
-        <p class="eyebrow">憩梦 · 个人门面</p>
-        <h1>憩梦时光</h1>
-        <p class="lede">聊 10 分钟，AI 帮你生成一个「既能被人找到、也能被 AI 找到」的个人网站。</p>
-        <div class="actions">
-          <button class="primary" id="start" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>开始制作</button>
-          <button class="secondary" id="demo" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5l1.2 5.3L18.5 10 13.2 11.2 12 16.5 10.8 11.2 5.5 10l5.3-1.2z"/></svg>一键体验示例</button>
+  <main id="main">
+    <section class="hero-full" aria-labelledby="hero-title">
+      <picture class="hero-media">
+        <source srcset="/img/hero-seaside.webp" type="image/webp">
+        <img src="/img/hero-seaside.jpg" alt="傍晚的海边露台，桌上放着一杯茶和一本打开的笔记本" width="1280" height="720" fetchpriority="high" decoding="async">
+      </picture>
+      <div class="hero-inner">
+        <p class="eyebrow" data-reveal style="--i:0">憩梦 · 个人门面</p>
+        <h1 class="display" id="hero-title" data-reveal style="--i:1">憩梦时光</h1>
+        <p class="lede" data-reveal style="--i:2">聊 10 分钟，AI 帮你生成一个「既能被人找到、也能被 AI 找到」的个人网站。</p>
+        <div class="actions" data-reveal style="--i:3">
+          <button class="primary btn-lg" id="start" type="button" data-start="interview"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>开始制作</button>
+          <button class="secondary btn-lg" id="demo" type="button" data-start="demo"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5l1.2 5.3L18.5 10 13.2 11.2 12 16.5 10.8 11.2 5.5 10l5.3-1.2z"/></svg>一键体验示例</button>
           <span class="demo-note">示例</span>
+        </div>
+        <p class="hero-meta" data-reveal style="--i:4">
+          <span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 16.5V7.8A2.8 2.8 0 0 1 7.8 5h8.4A2.8 2.8 0 0 1 19 7.8v5.4a2.8 2.8 0 0 1-2.8 2.8H9l-4 3.2z"/></svg>一次只问一个问题</span>
+          <span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 19l8.5-8.5"/><path d="M15.5 4.5l.6 1.9 1.9.6-1.9.6-.6 1.9-.6-1.9-1.9-.6 1.9-.6z"/><path d="M19.5 11.5l.4 1.1 1.1.4-1.1.4-.4 1.1-.4-1.1-1.1-.4 1.1-.4z"/></svg>一键生成网页</span>
+          <span><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="8"/><path d="M4 12h16"/><path d="M12 4c2.4 2.6 3.6 5.4 3.6 8S14.4 17.4 12 20c-2.4-2.6-3.6-5.4-3.6-8S9.6 6.6 12 4z"/></svg>人和 AI 都能找到</span>
+        </p>
+      </div>
+      <a class="scroll-cue" href="#how">向下了解</a>
+    </section>
+
+    <section class="section" id="how" aria-labelledby="how-title">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow">三步</p>
+          <h2 class="section-title" id="how-title">采访或导入，一键生成，发布</h2>
+        </div>
+        <ol class="steps-editorial" data-stagger>
+          <li class="step-item" data-reveal>
+            <p class="numeral">01</p>
+            <h3>采访或导入</h3>
+            <p>一次只问一个问题。也可以把其他 AI 对你的了解贴回来。</p>
+          </li>
+          <li class="step-item" data-reveal>
+            <p class="numeral">02</p>
+            <h3>一键生成</h3>
+            <p>整理成人生档案，用模板渲染网站。说一句话就能改。</p>
+          </li>
+          <li class="step-item" data-reveal>
+            <p class="numeral">03</p>
+            <h3>发布，被人找到</h3>
+            <p>得到 /u/你的名字。人和 AI 都能读到同一份档案。</p>
+          </li>
+        </ol>
+      </div>
+    </section>
+
+    <section class="section find-band" aria-labelledby="find-title">
+      <div class="container find-grid">
+        <div data-reveal="left">
+          <p class="eyebrow">AI 时代人找人</p>
+          <h2 class="section-title" id="find-title">一份档案，人读得懂，AI 也读得懂</h2>
+          <p class="find-copy">找人的不只有访客和客户，还有替人办事的智能体。网页给人看；同一份档案也写成机器可读的文件。</p>
+          <ul class="find-points">
+            <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="9" r="3"/><path d="M6.5 19.2a5.5 5.5 0 0 1 11 0"/></svg><span>网页：<code>/u/名字</code>，带 JSON-LD</span></li>
+            <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M7 4.5h7l5 5V19a1.5 1.5 0 0 1-1.5 1.5H7A1.5 1.5 0 0 1 5.5 19V6A1.5 1.5 0 0 1 7 4.5z"/><path d="M14 4.5V10h5.5"/></svg><span>档案：<code>profile.json</code></span></li>
+            <li><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 5.5A2.5 2.5 0 0 1 7.5 3H19v16H7.5A2.5 2.5 0 0 0 5 21.5z"/><path d="M5 5.5V21"/><path d="M9 7h6"/></svg><span>给大模型读：<code>llms.txt</code></span></li>
+          </ul>
+        </div>
+        <div class="dual" data-reveal="right" aria-label="同一份档案的两种读法（示例）">
+          <div class="dual-pane mini-site">
+            <p class="dual-label"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="9" r="3"/><path d="M6.5 19.2a5.5 5.5 0 0 1 11 0"/></svg>给人看</p>
+            <p class="mini-name">阿岚</p>
+            <p class="mini-title">民宿主理人 · 惠州双月湾</p>
+            <p class="mini-line">想让客人住得像在朋友家。</p>
+            <p class="mini-service"><span>海景双人房</span><b>380 元起</b></p>
+            <p class="mini-service"><span>家庭套房</span><b>680 元起</b></p>
+            <p class="mini-service"><span>清晨赶海向导</span><b>120 元/人</b></p>
+          </div>
+          <div class="dual-pane machine-pane">
+            <p class="dual-label"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5l1.2 5.3L18.5 10 13.2 11.2 12 16.5 10.8 11.2 5.5 10l5.3-1.2z"/></svg>给 AI 读</p>
+            <pre class="code" data-typing aria-label="profile.json 与 llms.txt 片段"><span data-type="// /u/阿岚/profile.json" class="c">// /u/阿岚/profile.json</span><span data-type='"name": "阿岚",'>"name": "阿岚",</span><span data-type='"title": "民宿主理人",'>"title": "民宿主理人",</span><span data-type='"city": "惠州双月湾",'>"city": "惠州双月湾",</span><span data-type='"services": [{ "name": "海景双人房", "price": "380 元起" }],'>"services": [{ "name": "海景双人房", "price": "380 元起" }],</span><span data-type='"seeking": [{ "who": "本地摄影师" }]'>"seeking": [{ "who": "本地摄影师" }]</span><span data-type=" "> </span><span data-type="# /u/阿岚/llms.txt" class="c"># /u/阿岚/llms.txt</span><span data-type="## 我能提供" class="k">## 我能提供</span><span data-type="- 海景双人房：看得到日出。价格：380 元起">- 海景双人房：看得到日出。价格：380 元起</span></pre>
+          </div>
         </div>
       </div>
     </section>
-    <section class="grid-3 steps" aria-label="三步">
-      <article class="card">
-        <div class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 16.5V7.8A2.8 2.8 0 0 1 7.8 5h8.4A2.8 2.8 0 0 1 19 7.8v5.4a2.8 2.8 0 0 1-2.8 2.8H9l-4 3.2z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <p class="step-no">01</p>
-        <h2>采访或导入</h2>
-        <p>一次只问一个问题。也可以把其他 AI 对你的了解贴回来。</p>
-      </article>
-      <article class="card">
-        <div class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5l1.2 5.3L18.5 10 13.2 11.2 12 16.5 10.8 11.2 5.5 10l5.3-1.2z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <p class="step-no">02</p>
-        <h2>一键生成</h2>
-        <p>整理成人生档案，用模板渲染网站。说一句话就能改。</p>
-      </article>
-      <article class="card">
-        <div class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 13.5l-1.2 1.2a3 3 0 0 1-4.3-4.2L6.8 8a3 3 0 0 1 4.2 0" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 10.5l1.2-1.2a3 3 0 0 1 4.3 4.2L17.2 16a3 3 0 0 1-4.2 0" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-        <p class="step-no">03</p>
-        <h2>发布，被人找到</h2>
-        <p>得到 /u/你的名字。人和 AI 都能读到同一份档案。</p>
-      </article>
-    </section>
-    <section class="grid-3" aria-label="差异">
-      <article class="card">
-        <div class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="9" r="3" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M6.5 19.2a5.5 5.5 0 0 1 11 0" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></div>
-        <h2>采访式收集</h2>
-        <p>不会写文案也能做。六个话题，答得笼统就再追问一次。</p>
-      </article>
-      <article class="card">
-        <div class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 16V8" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><path d="M8.5 11.5L12 8l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 18h14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></div>
-        <h2>导入 AI 记忆</h2>
-        <p>复制提问词到 DeepSeek、豆包、Kimi。不对接平台，也能打破信息孤岛。</p>
-      </article>
-      <article class="card">
-        <div class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 19l8.5-8.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><path d="M15.5 4.5l.6 1.9 1.9.6-1.9.6-.6 1.9-.6-1.9-1.9-.6 1.9-.6z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/></svg></div>
-        <h2>网站上的 AI 分身</h2>
-        <p>访客直接问。它只依据档案回答，并标明 AI 生成。</p>
-      </article>
-    </section>
-    <aside class="example-cta">
-      <div>
-        <p class="eyebrow">AI 时代人找人</p>
-        <h2>先看看示例：阿岚</h2>
-        <p class="muted">惠州双月湾民宿主理人。页面和发现卡片都标着「示例」。人和 AI 都可以打开同一份档案。</p>
+
+    <section class="section" aria-labelledby="story-title">
+      <div class="container story-grid">
+        <figure class="story-figure" data-reveal="left">
+          <picture>
+            <source srcset="/img/story-craft.webp" type="image/webp">
+            <img src="/img/story-craft.jpg" alt="一双手在木桌上整理纸卡，旁边是几只陶杯" width="864" height="1152" loading="lazy" decoding="async">
+          </picture>
+          <figcaption>把散落的经历，整理成一份档案</figcaption>
+        </figure>
+        <div data-reveal="right">
+          <p class="eyebrow">不会写也能做</p>
+          <h2 class="section-title" id="story-title">采访式收集</h2>
+          <blockquote class="pull-quote">
+            不会写文案也能做。六个话题，答得笼统就再追问一次。
+            <cite>采访官一次只问一个问题</cite>
+          </blockquote>
+          <ul class="story-list">
+            <li><span class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 16.5V7.8A2.8 2.8 0 0 1 7.8 5h8.4A2.8 2.8 0 0 1 19 7.8v5.4a2.8 2.8 0 0 1-2.8 2.8H9l-4 3.2z"/></svg></span><div><h3>你是谁、能提供什么</h3><p>经历与作品、你的故事、联系与寻找、网站风格。</p></div></li>
+            <li><span class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20h4l10-10-4-4L4 16z"/><path d="M12.5 7.5l4 4"/></svg></span><div><h3>说一句话就能改</h3><p>例如「风格换成简约」，只改被要求的部分。</p></div></li>
+          </ul>
+        </div>
       </div>
-      <div class="links">
-        <a class="secondary" href="/u/%E9%98%BF%E5%B2%9A">打开 /u/阿岚</a>
-        <a class="text-button" href="/u/alan">英文地址 /u/alan</a>
+    </section>
+
+    <section class="section" aria-labelledby="diff-title">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow">差异</p>
+          <h2 class="section-title" id="diff-title">为什么用憩梦时光</h2>
+        </div>
+        <div class="feature-grid" data-stagger>
+          <article class="card" data-reveal>
+            <span class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="9" r="3"/><path d="M6.5 19.2a5.5 5.5 0 0 1 11 0"/></svg></span>
+            <h3>采访式收集</h3>
+            <p>不会写文案也能做。六个话题，答得笼统就再追问一次。</p>
+          </article>
+          <article class="card" data-reveal>
+            <span class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 16V8"/><path d="M8.5 11.5L12 8l3.5 3.5"/><path d="M5 18h14"/></svg></span>
+            <h3>导入 AI 记忆</h3>
+            <p>复制提问词到 DeepSeek、豆包、Kimi。不对接平台，也能打破信息孤岛。</p>
+          </article>
+          <article class="card" data-reveal>
+            <span class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5l1.2 5.3L18.5 10 13.2 11.2 12 16.5 10.8 11.2 5.5 10l5.3-1.2z"/></svg></span>
+            <h3>网站上的 AI 分身</h3>
+            <p>访客直接问。它只依据档案回答，并标明 AI 生成。</p>
+          </article>
+        </div>
       </div>
-    </aside>
+    </section>
+
+    <section class="section" aria-labelledby="cta-title">
+      <div class="container">
+        <div class="cta-band" data-reveal>
+          <div>
+            <p class="eyebrow">现在开始</p>
+            <h2 id="cta-title">聊 10 分钟，得到一个自己的网站</h2>
+            <p>先看看示例：惠州双月湾民宿主理人阿岚。页面和发现卡片都标着「示例」。</p>
+            <p class="cta-links"><a href="/u/%E9%98%BF%E5%B2%9A">打开 /u/阿岚</a><a href="/u/alan">英文地址 /u/alan</a></p>
+          </div>
+          <div class="actions">
+            <button class="primary btn-invert btn-lg" type="button" data-start="interview"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>开始制作</button>
+            <button class="secondary btn-ghost-light btn-lg" type="button" data-start="demo"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5l1.2 5.3L18.5 10 13.2 11.2 12 16.5 10.8 11.2 5.5 10l5.3-1.2z"/></svg>一键体验示例</button>
+          </div>
+        </div>
+      </div>
+    </section>
   </main>
   <footer class="app-footer">
     <div class="wrap">
@@ -87,7 +174,7 @@
       <p class="notice" id="model-notice"></p>
     </div>
   </footer>
-  <script src="/icons.js"></script>
+  <script src="/motion.js"></script>
   <script src="/landing.js"></script>
 </body>
 </html>

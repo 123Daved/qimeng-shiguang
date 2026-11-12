@@ -25,6 +25,9 @@ const TYPES = {
   ".svg": "image/svg+xml",
   ".ico": "image/x-icon",
   ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
   ".webmanifest": "application/manifest+json",
   ".json": "application/json; charset=utf-8",
   ".txt": "text/plain; charset=utf-8",
@@ -209,7 +212,8 @@ function serveStatic(res, pathname) {
     return;
   }
   const type = TYPES[path.extname(file)] || "application/octet-stream";
-  res.writeHead(200, { "Content-Type": type, "Cache-Control": "no-cache", "X-Content-Type-Options": "nosniff" });
+  const cache = /\.(jpe?g|webp|png)$/.test(file) ? "public, max-age=86400" : "no-cache";
+  res.writeHead(200, { "Content-Type": type, "Cache-Control": cache, "X-Content-Type-Options": "nosniff" });
   fs.createReadStream(file).pipe(res);
 }
 

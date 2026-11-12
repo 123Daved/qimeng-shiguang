@@ -37,6 +37,12 @@ const previewEmpty = document.querySelector("#preview-empty");
 const publishResult = document.querySelector("#publish-result");
 const themePicks = document.querySelector("#theme-picks");
 const editChips = document.querySelector("#edit-chips");
+const previewFrame = document.querySelector("#preview-frame");
+const progressBar = document.querySelector("#progress-bar");
+const progressTrack = document.querySelector("#progress-track");
+const progressCount = document.querySelector("#progress-count");
+
+preview.addEventListener("load", () => preview.classList.remove("is-swapping"));
 
 function icon(name) {
   return (window.QDIcons && window.QDIcons.icon(name)) || "";
@@ -64,6 +70,10 @@ function field(title, value) {
 }
 
 function renderProgress(coverage) {
+  const done = TOPICS.filter(([id]) => coverage[id]).length;
+  if (progressBar) progressBar.style.width = `${(done / TOPICS.length) * 100}%`;
+  if (progressTrack) progressTrack.setAttribute("aria-valuenow", String(done));
+  if (progressCount) progressCount.textContent = `${done} / ${TOPICS.length}`;
   progress.replaceChildren();
   const current = TOPICS.find(([id]) => !coverage[id]);
   for (const [id, label] of TOPICS) {
@@ -178,6 +188,7 @@ function renderSession(next) {
   if (next.demo) showBanner("示例 / 演示：这是预置的双月湾民宿主理人阿岚，不是已核验的真实用户。", "warn");
   else if (next.fallback) showBanner("已切换离线模式。这次没有连上大模型，已改用规则继续，流程不会中断。", "");
   if (next.profile) {
+    if (!preview.hidden) preview.classList.add("is-swapping");
     preview.hidden = false;
     if (previewEmpty) previewEmpty.classList.add("hidden");
     const changed = (next.lastChanged || next.changed || []).join(",");
@@ -190,12 +201,21 @@ function renderSession(next) {
   link.textContent = "编辑链接就是编辑密钥，已经在浏览器地址栏里。请只自己保存，不要发到公开场合。";
 }
 
-function renderPublish(data) {
+function renderPublish(data, fresh) {
   publishResult.classList.remove("hidden");
+  publishResult.classList.toggle("is-new", !!fresh);
   publishResult.replaceChildren();
-  const flag = document.createElement("p");
-  flag.className = "banner ok";
-  flag.textContent = "已发布";
+  const flag = document.createElement("div");
+  flag.className = "publish-head";
+  flag.innerHTML = '<span class="success-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12.5l4.2 4.2L19 7.5"/></svg></span>';
+  const flagText = document.createElement("div");
+  const flagTitle = document.createElement("strong");
+  flagTitle.textContent = "已发布";
+  const flagNote = document.createElement("span");
+  flagNote.className = "caption";
+  flagNote.textContent = "之后的修改会自动同步到这个网址。";
+  flagText.append(flagTitle, flagNote);
+  flag.append(flagText);
   const link = document.createElement("a");
   link.className = "publish-link";
   link.id = "public-link";
@@ -343,8 +363,16 @@ document.querySelector("#import-submit").addEventListener("click", withBusy(docu
 }));
 
 document.querySelector("#generate").addEventListener("click", withBusy(document.querySelector("#generate"), "生成中", async () => {
-  const data = await api(`/api/sessions/${encodeURIComponent(sid)}/profile`, { method: "POST", headers: headers() });
-  renderSession(data);
+  previewFrame.classList.add("is-loading");
+  if (previewEmpty) previewEmpty.classList.add("hidden");
+  if (window.innerWidth < 960) previewFrame.scrollIntoView({ block: "nearest" });
+  try {
+    const data = await api(`/api/sessions/${encodeURIComponent(sid)}/profile`, { method: "POST", headers: headers() });
+    renderSession(data);
+  } finally {
+    previewFrame.classList.remove("is-loading");
+    if (preview.hidden && previewEmpty) previewEmpty.classList.remove("hidden");
+  }
 }));
 
 document.querySelector("#edit-form").addEventListener("submit", (event) => {
@@ -359,7 +387,7 @@ document.querySelector("#publish-form").addEventListener("submit", withBusy(docu
     body: JSON.stringify({ slug: document.querySelector("#slug").value }),
   });
   renderSession(data);
-  renderPublish(data);
+  renderPublish(data, true);
   document.querySelector("#publish-result").scrollIntoView({ block: "center" });
 }));
 
