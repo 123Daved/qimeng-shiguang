@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-qd-product="life" data-qd-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>发现 · 憩梦时光</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <a class="skip" href="#q">跳到搜索</a>
+  <header class="topbar">
+    <div class="wrap" style="display:flex;justify-content:space-between;align-items:center;width:min(1120px,100%)">
+      <a class="wordmark" href="/"><i></i>憩梦时光</a>
+      <nav class="nav">
+        <a href="/discover.html" aria-current="page">发现</a>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap" style="padding:32px 0 48px">
+    <h1>发现</h1>
+    <p class="lede">按关键词找人。这里只列出已经发布的网站，不会编造。</p>
+    <form id="search-form" class="panel" style="margin-top:24px">
+      <label for="q">关键词</label>
+      <div class="composer">
+        <input id="q" name="q" type="search" placeholder="例如：民宿、摄影、双月湾" maxlength="40">
+        <button class="primary" id="search" type="submit">搜索</button>
+      </div>
+    </form>
+    <div id="results" class="result-list"></div>
+    <p id="empty" class="empty-state hidden"></p>
+  </main>
+  <footer class="app-footer">
+    <div class="wrap">
+      <p>憩梦 · 憩梦时光</p>
+      <p class="notice" id="model-notice"></p>
+    </div>
+  </footer>
+  <script src="/discover.js"></script>
+</body>
+</html>

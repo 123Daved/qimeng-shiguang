@@ -1,0 +1,14 @@
+{
+  "name": "qimeng-shiguang",
+  "version": "0.1.0",
+  "private": true,
+  "description": "聊 10 分钟，AI 帮你生成一个既能被人找到、也能被 AI 找到的个人网站。",
+  "engines": {
+    "node": ">=18.17"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "demo": "node scripts/demo.js",
+    "test": "node --test --test-concurrency=1 test/mvp.test.js"
+  }
+}

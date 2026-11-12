@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-qd-product="life" data-qd-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>制作网站 · 憩梦时光</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <a class="skip" href="#chat">跳到对话</a>
+  <header class="topbar">
+    <div class="wrap" style="display:flex;justify-content:space-between;align-items:center;width:min(1120px,100%)">
+      <a class="wordmark" href="/"><i></i>憩梦时光</a>
+      <nav class="nav">
+        <a href="/discover.html">发现</a>
+      </nav>
+    </div>
+  </header>
+  <main class="wrap stack" style="padding-bottom:48px">
+    <p class="banner hidden" id="banner"></p>
+    <section>
+      <h1>制作你的网站</h1>
+      <p class="muted">一次只回答一个问题。导入的原文不会公开。</p>
+      <ol class="progress" id="progress"></ol>
+    </section>
+    <div class="grid-2">
+      <section class="stack">
+        <div class="chat" id="chat" aria-live="polite"></div>
+        <form id="answer-form" class="panel">
+          <label for="answer">你的回答</label>
+          <div class="composer">
+            <textarea id="answer" name="answer" maxlength="4000" placeholder="用平时说话的方式写就好"></textarea>
+            <button class="primary" id="send" type="submit">发送</button>
+          </div>
+        </form>
+        <section class="panel" id="import-panel">
+          <h2>导入 AI 记忆</h2>
+          <p class="muted">把提问词复制到 DeepSeek、豆包、Kimi、Codex、Claude 或 Gemini，让它总结「你对我的了解」，再粘贴回来。简历和小红书简介也可以。</p>
+          <label for="import-prompt">提问词</label>
+          <textarea id="import-prompt" readonly></textarea>
+          <div class="actions">
+            <button class="secondary" id="copy-prompt" type="button">复制提问词</button>
+            <span id="copy-state" class="demo-note" role="status"></span>
+          </div>
+          <label for="import-text">粘贴对方的总结</label>
+          <textarea id="import-text" maxlength="20000" placeholder="在这里粘贴。标成「内部备注」的内容不会公开。"></textarea>
+          <button class="primary" id="import-submit" type="button">导入并继续</button>
+        </section>
+      </section>
+      <aside class="stack">
+        <section class="panel" id="profile-panel">
+          <h2>档案</h2>
+          <div id="profile-cards"><p class="muted">生成之后，这里会按栏目显示档案。</p></div>
+          <div class="actions">
+            <button class="primary" id="generate" type="button">生成网站</button>
+          </div>
+        </section>
+        <section class="panel">
+          <h2>一句话修改</h2>
+          <form id="edit-form">
+            <label for="instruction">修改指令</label>
+            <input id="instruction" name="instruction" maxlength="200" placeholder="例如：风格换成简约">
+            <div class="actions"><button class="secondary" id="edit" type="submit">按这句话修改</button></div>
+          </form>
+        </section>
+        <section class="panel">
+          <h2>发布</h2>
+          <form id="publish-form">
+            <label for="slug">网址名</label>
+            <input id="slug" name="slug" maxlength="24" placeholder="默认用你的名字">
+            <div class="actions"><button class="primary" id="publish" type="submit">发布</button></div>
+          </form>
+          <div id="publish-result" class="stack hidden"></div>
+        </section>
+        <p class="muted" id="edit-link"></p>
+      </aside>
+    </div>
+    <section class="stack" id="preview-section">
+      <h2>网站预览</h2>
+      <iframe class="preview" id="preview" title="网站预览" hidden></iframe>
+    </section>
+  </main>
+  <footer class="app-footer">
+    <div class="wrap">
+      <p>憩梦 · 憩梦时光</p>
+      <p class="notice" id="model-notice"></p>
+    </div>
+  </footer>
+  <script src="/workbench.js"></script>
+</body>
+</html>
