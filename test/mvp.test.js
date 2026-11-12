@@ -492,6 +492,56 @@ test("空数据目录启动时种入示例网站阿岚", async () => {
     assert.equal(seedExampleIfEmpty(store), null);
     assert.equal(store.listSites().some((site) => site.slug === "林可"), true);
     assert.equal(store.getSite("阿岚").example, true);
+
+    const aliasPage = await fetch(`${base}/u/alan`);
+    assert.equal(aliasPage.status, 200);
+    const aliasHtml = await aliasPage.text();
+    assert.match(aliasHtml, /阿岚/);
+    assert.match(aliasHtml, /示例/);
+    assert.match(aliasHtml, /海景双人房/);
+    assert.match(aliasHtml, /theme-simple/);
+    const aliasProfile = await (await fetch(`${base}/u/alan/profile.json`)).json();
+    assert.equal(aliasProfile.name, "阿岚");
+    assert.equal(aliasProfile.slug, "阿岚");
+    const aliasLlms = await (await fetch(`${base}/u/alan/llms.txt`)).text();
+    assert.match(aliasLlms, /# 阿岚/);
+    const canonical = await (await fetch(`${base}/u/${encodeURIComponent("阿岚")}`)).text();
+    assert.match(canonical, /阿岚/);
+
+    fs.unlinkSync(path.join(dataDir, "sites", "阿岚.json"));
+    const storeAfter = createStore(dataDir);
+    assert.equal(storeAfter.getSite("阿岚"), null);
+    assert.equal(storeAfter.listSites().some((site) => site.slug === "林可"), true);
+    const seeded = seedExampleIfEmpty(storeAfter);
+    assert.equal(seeded.slug, "阿岚");
+    assert.equal(storeAfter.getSite("阿岚").example, true);
+    assert.equal(storeAfter.listSites().some((site) => site.slug === "林可"), true);
+  });
+});
+
+test("已发布的 alan 优先于示例别名，路径穿越仍然被拒绝", async () => {
+  await withApp({}, async ({ base }) => {
+    const created = await api(base, "POST", "/api/sessions", { body: { mode: "import" } });
+    const { id, editToken } = created.json;
+    await api(base, "POST", `/api/sessions/${id}/imports`, {
+      token: editToken,
+      body: { text: LIN_KE.join("\n") },
+    });
+    await api(base, "POST", `/api/sessions/${id}/profile`, { token: editToken });
+    const published = await api(base, "POST", `/api/sessions/${id}/publish`, { token: editToken, body: { slug: "alan" } });
+    assert.equal(published.status, 200, published.text);
+    assert.equal(published.json.slug, "alan");
+    const userPage = await (await fetch(`${base}/u/alan`)).text();
+    assert.match(userPage, /林可/);
+    assert.doesNotMatch(userPage, /海景双人房/);
+    const example = await (await fetch(`${base}/u/${encodeURIComponent("阿岚")}`)).text();
+    assert.match(example, /阿岚/);
+    assert.match(example, /海景双人房/);
+    const traversal = await fetch(`${base}/u/%2e%2e%2fsecret.txt`);
+    assert.ok(traversal.status === 400 || traversal.status === 404);
+    assert.equal(isSafeSlug("alan"), true);
+    assert.equal(isSafeSlug("%"), false);
+    assert.equal(isSafeSlug("a%b"), false);
   });
 });
 

@@ -23,7 +23,9 @@ const TYPES = {
   ".css": "text/css; charset=utf-8",
   ".js": "text/javascript; charset=utf-8",
   ".svg": "image/svg+xml",
+  ".ico": "image/x-icon",
   ".png": "image/png",
+  ".webmanifest": "application/manifest+json",
   ".json": "application/json; charset=utf-8",
   ".txt": "text/plain; charset=utf-8",
 };
@@ -145,22 +147,23 @@ async function handle(req, res, ctx) {
     if (!isSafeSlug(slug) || parts.length > 3) return sendText(res, 404, "没有这个网站。", "text/plain; charset=utf-8");
     const site = ctx.service.getPublicSite(slug);
     if (!site) return sendText(res, 404, "没有这个网站。", "text/plain; charset=utf-8");
+    const canonical = site.slug;
     const base = originOf(req, ctx.config);
-    const pageUrl = absoluteUrl(base, slug);
+    const pageUrl = absoluteUrl(base, canonical);
     if (parts[2] === "profile.json") {
-      ctx.store.addEvent({ type: "machine_file_fetch", slug, file: "profile.json" });
-      return sendJson(res, 200, renderProfileJson(site.profile, { slug, absoluteUrl: pageUrl }));
+      ctx.store.addEvent({ type: "machine_file_fetch", slug: canonical, file: "profile.json" });
+      return sendJson(res, 200, renderProfileJson(site.profile, { slug: canonical, absoluteUrl: pageUrl }));
     }
     if (parts[2] === "llms.txt") {
-      ctx.store.addEvent({ type: "machine_file_fetch", slug, file: "llms.txt" });
+      ctx.store.addEvent({ type: "machine_file_fetch", slug: canonical, file: "llms.txt" });
       return sendText(res, 200, renderLlms(site.profile, { absoluteUrl: pageUrl }), "text/plain; charset=utf-8");
     }
     if (parts[2]) return sendText(res, 404, "没有这个文件。", "text/plain; charset=utf-8");
-    ctx.service.recordVisit(slug);
+    ctx.service.recordVisit(canonical);
     const html = renderSite({
       profile: site.profile,
-      slug,
-      pageUrl: `/u/${encodeURIComponent(slug)}`,
+      slug: canonical,
+      pageUrl: `/u/${encodeURIComponent(canonical)}`,
       absoluteUrl: pageUrl,
       modelNotice: ctx.config.modelNotice,
       example: site.example,

@@ -1,31 +1,52 @@
 "use strict";
 
+function icon(name) {
+  return (window.QDIcons && window.QDIcons.icon(name)) || "";
+}
+
 function card(person) {
   const link = document.createElement("a");
   link.className = "person";
   link.href = person.url;
   const name = document.createElement("h2");
   name.textContent = person.name;
+  link.append(name);
   const title = document.createElement("p");
+  title.className = "person-meta";
   title.textContent = [person.title, person.city].filter(Boolean).join(" · ");
-  link.append(name, title);
+  if (title.textContent) link.append(title);
   if (person.example) {
     const flag = document.createElement("p");
-    flag.className = "demo-note";
+    flag.className = "person-flag";
     flag.textContent = "示例";
     link.append(flag);
   }
   if (person.tags && person.tags.length) {
-    const tags = document.createElement("p");
-    tags.textContent = person.tags.join(" / ");
+    const tags = document.createElement("ul");
+    tags.className = "tags";
+    for (const tag of person.tags.slice(0, 6)) {
+      const item = document.createElement("li");
+      item.textContent = tag;
+      tags.append(item);
+    }
     link.append(tags);
   }
   if (person.services && person.services.length) {
     const services = document.createElement("p");
+    services.className = "person-meta";
     services.textContent = person.services.map((item) => `${item.name}${item.price ? ` ${item.price}` : ""}`).join("；");
     link.append(services);
   }
   return link;
+}
+
+function setEmpty(node, text) {
+  node.classList.remove("hidden");
+  node.replaceChildren();
+  node.insertAdjacentHTML("beforeend", icon("search"));
+  const p = document.createElement("span");
+  p.textContent = text;
+  node.append(p);
 }
 
 async function search(q) {
@@ -35,10 +56,9 @@ async function search(q) {
   const empty = document.querySelector("#empty");
   results.replaceChildren();
   if (!data.results.length) {
-    empty.classList.remove("hidden");
-    empty.textContent = q
+    setEmpty(empty, q
       ? `没有找到和「${q}」匹配的人。换个词试试，比如「民宿」或「双月湾」。`
-      : "还没有已发布的网站。";
+      : "还没有已发布的网站。");
     return;
   }
   empty.classList.add("hidden");
@@ -46,7 +66,8 @@ async function search(q) {
 }
 
 fetch("/api/config").then((response) => response.json()).then((config) => {
-  document.querySelector("#model-notice").textContent = config.modelNotice || "";
+  const notice = document.querySelector("#model-notice");
+  if (notice) notice.textContent = config.modelNotice || "";
 });
 
 const initial = new URLSearchParams(location.search).get("q") || "";

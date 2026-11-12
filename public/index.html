@@ -5,46 +5,89 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>憩梦时光</title>
   <meta name="description" content="聊 10 分钟，AI 帮你生成一个既能被人找到、也能被 AI 找到的个人网站。">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <a class="skip" href="#main">跳到主要内容</a>
   <header class="topbar">
-    <div class="wrap" style="display:flex;justify-content:space-between;align-items:center;width:min(1120px,100%)">
-      <a class="wordmark" href="/"><i></i>憩梦时光</a>
+    <div class="wrap">
+      <a class="wordmark" href="/"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6" fill="#A9532F"/><circle cx="12" cy="8.2" r="1.5" fill="#FFFFFF"/><path d="M6 14.5c2.2-3.2 4-4.8 6-4.8s3.8 1.6 6 4.8" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16.8h10" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round"/></svg>憩梦时光</a>
       <nav class="nav">
+        <a href="/" aria-current="page">首页</a>
         <a href="/discover.html">发现</a>
       </nav>
     </div>
   </header>
   <main id="main" class="wrap">
     <section class="hero-home">
-      <p class="step-no">憩梦 · 个人门面</p>
-      <h1>憩梦时光</h1>
-      <p class="lede">聊 10 分钟，AI 帮你生成一个「既能被人找到、也能被 AI 找到」的个人网站。</p>
-      <div class="actions">
-        <button class="primary" id="start" type="button">开始制作</button>
-        <button class="secondary" id="demo" type="button">一键体验示例</button>
-        <span class="demo-note">示例</span>
+      <div class="hero-copy">
+        <p class="eyebrow">憩梦 · 个人门面</p>
+        <h1>憩梦时光</h1>
+        <p class="lede">聊 10 分钟，AI 帮你生成一个「既能被人找到、也能被 AI 找到」的个人网站。</p>
+        <div class="actions">
+          <button class="primary" id="start" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>开始制作</button>
+          <button class="secondary" id="demo" type="button"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5l1.2 5.3L18.5 10 13.2 11.2 12 16.5 10.8 11.2 5.5 10l5.3-1.2z"/></svg>一键体验示例</button>
+          <span class="demo-note">示例</span>
+        </div>
       </div>
     </section>
-    <section class="grid-3" aria-label="三步">
-      <article class="card"><p class="step-no">01</p><h2>采访或导入</h2><p>一次只问一个问题。也可以把其他 AI 对你的了解贴回来。</p></article>
-      <article class="card"><p class="step-no">02</p><h2>一键生成</h2><p>整理成人生档案，用模板渲染网站。说一句话就能改。</p></article>
-      <article class="card"><p class="step-no">03</p><h2>发布，被人找到</h2><p>得到 /u/你的名字。人和 AI 都能读到同一份档案。</p></article>
+    <section class="grid-3 steps" aria-label="三步">
+      <article class="card">
+        <div class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 16.5V7.8A2.8 2.8 0 0 1 7.8 5h8.4A2.8 2.8 0 0 1 19 7.8v5.4a2.8 2.8 0 0 1-2.8 2.8H9l-4 3.2z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <p class="step-no">01</p>
+        <h2>采访或导入</h2>
+        <p>一次只问一个问题。也可以把其他 AI 对你的了解贴回来。</p>
+      </article>
+      <article class="card">
+        <div class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5l1.2 5.3L18.5 10 13.2 11.2 12 16.5 10.8 11.2 5.5 10l5.3-1.2z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <p class="step-no">02</p>
+        <h2>一键生成</h2>
+        <p>整理成人生档案，用模板渲染网站。说一句话就能改。</p>
+      </article>
+      <article class="card">
+        <div class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M10 13.5l-1.2 1.2a3 3 0 0 1-4.3-4.2L6.8 8a3 3 0 0 1 4.2 0" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 10.5l1.2-1.2a3 3 0 0 1 4.3 4.2L17.2 16a3 3 0 0 1-4.2 0" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <p class="step-no">03</p>
+        <h2>发布，被人找到</h2>
+        <p>得到 /u/你的名字。人和 AI 都能读到同一份档案。</p>
+      </article>
     </section>
     <section class="grid-3" aria-label="差异">
-      <article class="card"><h2>采访式收集</h2><p>不会写文案也能做。六个话题，答得笼统就再追问一次。</p></article>
-      <article class="card"><h2>导入 AI 记忆</h2><p>复制提问词到 DeepSeek、豆包、Kimi。不对接平台，也能打破信息孤岛。</p></article>
-      <article class="card"><h2>网站上的 AI 分身</h2><p>访客直接问。它只依据档案回答，并标明 AI 生成。</p></article>
+      <article class="card">
+        <div class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="12" cy="9" r="3" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M6.5 19.2a5.5 5.5 0 0 1 11 0" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></div>
+        <h2>采访式收集</h2>
+        <p>不会写文案也能做。六个话题，答得笼统就再追问一次。</p>
+      </article>
+      <article class="card">
+        <div class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 16V8" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><path d="M8.5 11.5L12 8l3.5 3.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 18h14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/></svg></div>
+        <h2>导入 AI 记忆</h2>
+        <p>复制提问词到 DeepSeek、豆包、Kimi。不对接平台，也能打破信息孤岛。</p>
+      </article>
+      <article class="card">
+        <div class="card-icon"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 19l8.5-8.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"/><path d="M15.5 4.5l.6 1.9 1.9.6-1.9.6-.6 1.9-.6-1.9-1.9-.6 1.9-.6z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/></svg></div>
+        <h2>网站上的 AI 分身</h2>
+        <p>访客直接问。它只依据档案回答，并标明 AI 生成。</p>
+      </article>
     </section>
+    <aside class="example-cta">
+      <div>
+        <p class="eyebrow">AI 时代人找人</p>
+        <h2>先看看示例：阿岚</h2>
+        <p class="muted">惠州双月湾民宿主理人。页面和发现卡片都标着「示例」。人和 AI 都可以打开同一份档案。</p>
+      </div>
+      <div class="links">
+        <a class="secondary" href="/u/%E9%98%BF%E5%B2%9A">打开 /u/阿岚</a>
+        <a class="text-button" href="/u/alan">英文地址 /u/alan</a>
+      </div>
+    </aside>
   </main>
   <footer class="app-footer">
     <div class="wrap">
-      <p>憩梦 · 憩梦时光</p>
+      <p class="brand-lockup"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6" fill="#A9532F"/><circle cx="12" cy="8.2" r="1.5" fill="#FFFFFF"/><path d="M6 14.5c2.2-3.2 4-4.8 6-4.8s3.8 1.6 6 4.8" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16.8h10" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round"/></svg><span><span class="mother">憩梦</span> · 憩梦时光</span></p>
       <p class="notice" id="model-notice"></p>
     </div>
   </footer>
+  <script src="/icons.js"></script>
   <script src="/landing.js"></script>
 </body>
 </html>

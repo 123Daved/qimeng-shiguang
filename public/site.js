@@ -46,7 +46,9 @@ document.querySelector("#avatar-form").addEventListener("submit", async (event) 
   addMessage(question, "user");
   input.value = "";
   const button = event.submitter || document.querySelector("#avatar-form button");
+  const original = button.textContent;
   button.disabled = true;
+  button.textContent = "发送中";
   try {
     const response = await fetch(`/api/sites/${encodeURIComponent(boot.slug)}/ask`, {
       method: "POST",
@@ -59,6 +61,7 @@ document.querySelector("#avatar-form").addEventListener("submit", async (event) 
     addMessage("网络中断了。可以稍后再问，或直接联系本人。", "assistant");
   } finally {
     button.disabled = false;
+    button.textContent = original;
   }
 });
 document.querySelectorAll(".contact").forEach((node) => {

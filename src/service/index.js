@@ -16,6 +16,7 @@ const {
   TOPIC_IDS,
 } = require("../profile");
 const { isSafeSlug, slugFromName, tokenEquals } = require("../security");
+const { EXAMPLE_SLUG, isExampleAlias } = require("../seed");
 const { qrSvg } = require("../qr");
 
 function fail(status, message) {
@@ -379,11 +380,11 @@ function createService(store, config) {
   }
 
   function recordVisit(slug) {
-    const site = store.getSite(slug);
+    const site = getPublicSite(slug);
     if (!site) return null;
     site.visits = (site.visits || 0) + 1;
     store.saveSite(site);
-    store.addEvent({ type: "site_visit", slug });
+    store.addEvent({ type: "site_visit", slug: site.slug });
     return site;
   }
 
@@ -395,7 +396,13 @@ function createService(store, config) {
 
   function getPublicSite(slug) {
     if (!isSafeSlug(slug)) return null;
-    return store.getSite(slug);
+    const direct = store.getSite(slug);
+    if (direct) return direct;
+    if (isExampleAlias(slug)) {
+      const example = store.getSite(EXAMPLE_SLUG);
+      if (example && example.example) return example;
+    }
+    return null;
   }
 
   return {

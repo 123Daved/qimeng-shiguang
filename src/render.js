@@ -4,6 +4,9 @@ const { escapeHtml, escapeXml, sanitizeUrl, jsonForScript } = require("./securit
 const { normalizeProfile, THEMES } = require("./profile");
 const { icon } = require("./icons");
 
+const MARK = '<svg class="mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6" fill="#A9532F"/><circle cx="12" cy="8.2" r="1.5" fill="#FFFFFF"/><path d="M6 14.5c2.2-3.2 4-4.8 6-4.8s3.8 1.6 6 4.8" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16.8h10" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round"/></svg>';
+const CONTACT_ICONS = { wechat: "chat", phone: "phone", email: "mail", xiaohongshu: "link", douyin: "link", website: "globe" };
+
 function priceAmount(price) {
   const matched = String(price || "").match(/(\d+(?:\.\d+)?)/);
   return matched ? matched[1] : "";
@@ -102,7 +105,7 @@ function renderSite(options) {
     </article>`).join("");
   const seeking = profile.seeking.map((item) => `<li><strong>${escapeHtml(item.who)}</strong>${item.description ? `：${escapeHtml(item.description)}` : ""}</li>`).join("");
   const contactHtml = contacts.map((item) => {
-    const inner = `${icon("link")}<span><small>${escapeHtml(item.label)}</small>${escapeHtml(item.value)}</span>`;
+    const inner = `${icon(CONTACT_ICONS[item.key] || "link")}<span><small>${escapeHtml(item.label)}</small>${escapeHtml(item.value)}</span>`;
     if (!item.href) return `<div class="contact">${inner}</div>`;
     return `<a class="contact" href="${escapeHtml(item.href)}" data-channel="${escapeHtml(item.key)}">${inner}</a>`;
   }).join("");
@@ -119,6 +122,7 @@ function renderSite(options) {
   <title>${escapeHtml(profile.name || "未命名")} · 憩梦时光</title>
   <meta name="description" content="${escapeHtml(profile.tagline || profile.about || "个人网站")}">
   ${pageUrl ? `<link rel="canonical" href="${escapeHtml(options.absoluteUrl || pageUrl)}">` : ""}
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
   <script type="application/ld+json">${ld}</script>
 </head>
@@ -127,7 +131,7 @@ function renderSite(options) {
   ${example}
   ${preview}
   <header class="hero ${changed.has("theme") || changed.has("accent") || changed.has("name") || changed.has("about") ? "is-changed" : ""}">
-    <p class="brand">憩梦时光</p>
+    <p class="brand">${MARK}<span>憩梦时光</span></p>
     <h1>${escapeHtml(profile.name || "未命名")}</h1>
     ${profile.title ? `<p class="title">${escapeHtml(profile.title)}</p>` : ""}
     ${profile.tagline ? `<p class="tagline">${escapeHtml(profile.tagline)}</p>` : ""}
@@ -151,7 +155,7 @@ function renderSite(options) {
   <footer class="site-footer">
     <a class="footer-cta" href="/?from=footer&amp;ref=${encodeURIComponent(slug)}">我也要一个 →</a>
     ${machine}
-    <p>憩梦 · 憩梦时光</p>
+    <p class="brand-lockup">${MARK}<span><span class="mother">憩梦</span> · 憩梦时光</span></p>
     <p class="notice">${escapeHtml(options.modelNotice || "")}</p>
   </footer>
   <button type="button" class="avatar-launch" id="avatar-open">${icon("spark")}<span>问 AI 分身</span><em>AI 生成</em></button>

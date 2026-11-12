@@ -4,24 +4,27 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>制作网站 · 憩梦时光</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
   <a class="skip" href="#chat">跳到对话</a>
   <header class="topbar">
-    <div class="wrap" style="display:flex;justify-content:space-between;align-items:center;width:min(1120px,100%)">
-      <a class="wordmark" href="/"><i></i>憩梦时光</a>
+    <div class="wrap">
+      <a class="wordmark" href="/"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6" fill="#A9532F"/><circle cx="12" cy="8.2" r="1.5" fill="#FFFFFF"/><path d="M6 14.5c2.2-3.2 4-4.8 6-4.8s3.8 1.6 6 4.8" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16.8h10" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round"/></svg>憩梦时光</a>
       <nav class="nav">
+        <a href="/">首页</a>
+        <a href="/workbench.html" aria-current="page">制作</a>
         <a href="/discover.html">发现</a>
       </nav>
     </div>
   </header>
-  <main class="wrap stack" style="padding-bottom:48px">
-    <p class="banner hidden" id="banner"></p>
-    <section>
+  <main class="wrap stack workbench">
+    <p class="banner hidden" id="banner" role="status"></p>
+    <section class="page-head">
       <h1>制作你的网站</h1>
       <p class="muted">一次只回答一个问题。导入的原文不会公开。</p>
-      <ol class="progress" id="progress"></ol>
+      <ol class="progress" id="progress" aria-label="六个话题的进度"></ol>
     </section>
     <div class="grid-2">
       <section class="stack">
@@ -34,7 +37,9 @@
           </div>
         </form>
         <section class="panel" id="import-panel">
-          <h2>导入 AI 记忆</h2>
+          <div class="panel-head">
+            <h2>导入 AI 记忆</h2>
+          </div>
           <p class="muted">把提问词复制到 DeepSeek、豆包、Kimi、Codex、Claude 或 Gemini，让它总结「你对我的了解」，再粘贴回来。简历和小红书简介也可以。</p>
           <label for="import-prompt">提问词</label>
           <textarea id="import-prompt" readonly></textarea>
@@ -44,19 +49,28 @@
           </div>
           <label for="import-text">粘贴对方的总结</label>
           <textarea id="import-text" maxlength="20000" placeholder="在这里粘贴。标成「内部备注」的内容不会公开。"></textarea>
-          <button class="primary" id="import-submit" type="button">导入并继续</button>
+          <div class="actions">
+            <button class="primary" id="import-submit" type="button">导入并继续</button>
+          </div>
         </section>
       </section>
       <aside class="stack">
         <section class="panel" id="profile-panel">
           <h2>档案</h2>
-          <div id="profile-cards"><p class="muted">生成之后，这里会按栏目显示档案。</p></div>
+          <div id="profile-cards"><p class="muted profile-empty">生成之后，这里会按栏目显示档案。</p></div>
           <div class="actions">
             <button class="primary" id="generate" type="button">生成网站</button>
           </div>
         </section>
-        <section class="panel">
+        <section class="panel" id="theme-panel">
+          <h2>网站风格</h2>
+          <p class="muted">三套模板，点一下即可更换。内容不会被改写。</p>
+          <div class="theme-picks" id="theme-picks"></div>
+        </section>
+        <section class="panel" id="edit-panel">
           <h2>一句话修改</h2>
+          <p class="muted">先选一条建议，也可以自己写。</p>
+          <div class="chips" id="edit-chips"></div>
           <form id="edit-form">
             <label for="instruction">修改指令</label>
             <input id="instruction" name="instruction" maxlength="200" placeholder="例如：风格换成简约">
@@ -70,22 +84,27 @@
             <input id="slug" name="slug" maxlength="24" placeholder="默认用你的名字">
             <div class="actions"><button class="primary" id="publish" type="submit">发布</button></div>
           </form>
-          <div id="publish-result" class="stack hidden"></div>
+          <div id="publish-result" class="publish-success hidden"></div>
         </section>
         <p class="muted" id="edit-link"></p>
       </aside>
     </div>
     <section class="stack" id="preview-section">
       <h2>网站预览</h2>
-      <iframe class="preview" id="preview" title="网站预览" hidden></iframe>
+      <div class="preview-frame" id="preview-frame">
+        <div class="preview-chrome" aria-hidden="true"><span></span><span></span><span></span> 预览</div>
+        <iframe class="preview" id="preview" title="网站预览" hidden></iframe>
+        <p class="muted" id="preview-empty">生成网站之后，这里会显示预览。</p>
+      </div>
     </section>
   </main>
   <footer class="app-footer">
     <div class="wrap">
-      <p>憩梦 · 憩梦时光</p>
+      <p class="brand-lockup"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6" fill="#A9532F"/><circle cx="12" cy="8.2" r="1.5" fill="#FFFFFF"/><path d="M6 14.5c2.2-3.2 4-4.8 6-4.8s3.8 1.6 6 4.8" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16.8h10" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round"/></svg><span><span class="mother">憩梦</span> · 憩梦时光</span></p>
       <p class="notice" id="model-notice"></p>
     </div>
   </footer>
+  <script src="/icons.js"></script>
   <script src="/workbench.js"></script>
 </body>
 </html>

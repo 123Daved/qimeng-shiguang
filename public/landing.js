@@ -8,7 +8,7 @@ async function readConfig() {
   return config;
 }
 
-async function start(mode) {
+async function start(mode, button) {
   const params = new URLSearchParams(location.search);
   const source = params.get("from") === "footer" ? "footer" : "direct";
   if (source === "footer") {
@@ -18,22 +18,38 @@ async function start(mode) {
       body: JSON.stringify({ type: "footer_cta_click", slug: params.get("ref") || "" }),
     });
   }
-  const response = await fetch("/api/sessions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ mode, source, ref: params.get("ref") || "" }),
-  });
-  const data = await response.json();
-  if (!response.ok) {
-    window.alert(data.error || "没有创建成功，请再试一次。");
-    return;
+  const startBtn = document.querySelector("#start");
+  const demoBtn = document.querySelector("#demo");
+  startBtn.disabled = true;
+  demoBtn.disabled = true;
+  const original = button.innerHTML;
+  button.textContent = "正在创建";
+  try {
+    const response = await fetch("/api/sessions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mode, source, ref: params.get("ref") || "" }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      window.alert(data.error || "没有创建成功，请再试一次。");
+      button.innerHTML = original;
+      startBtn.disabled = false;
+      demoBtn.disabled = false;
+      return;
+    }
+    location.href = data.workbenchUrl;
+  } catch {
+    window.alert("网络中断了，请再试一次。");
+    button.innerHTML = original;
+    startBtn.disabled = false;
+    demoBtn.disabled = false;
   }
-  location.href = data.workbenchUrl;
 }
 
 readConfig().catch(() => {});
-document.querySelector("#start").addEventListener("click", () => start("interview"));
-document.querySelector("#demo").addEventListener("click", () => start("demo"));
+document.querySelector("#start").addEventListener("click", (event) => start("interview", event.currentTarget));
+document.querySelector("#demo").addEventListener("click", (event) => start("demo", event.currentTarget));
 if (new URLSearchParams(location.search).get("from") === "footer") {
   fetch("/api/events", {
     method: "POST",
