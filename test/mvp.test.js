@@ -402,7 +402,7 @@ test("笼统回答只追问一次，而且每轮只有一个问题", async () =>
 
 test("发现页空结果不编造，机器可读文件和 sitemap 可用", async () => {
   await withApp({}, async ({ base }) => {
-    const empty = await api(base, "GET", "/api/discover?q=" + encodeURIComponent("双月湾"));
+    const empty = await api(base, "GET", "/api/discover?q=" + encodeURIComponent("火星殖民者zzz"));
     assert.equal(empty.json.results.length, 0);
     assert.equal(empty.json.empty, true);
     const created = await api(base, "POST", "/api/sessions", { body: { mode: "import" } });
@@ -454,6 +454,44 @@ test("页脚、访客数、模型公示和示例模式可用", async () => {
     assert.equal(stats.json.avatarAsks, 0);
     const click = await api(base, "POST", "/api/events", { body: { type: "footer_cta_click", slug: published.json.slug } });
     assert.equal(click.status, 202);
+  });
+});
+
+test("空数据目录启动时种入示例网站阿岚", async () => {
+  const { seedExampleIfEmpty } = require("../src/seed");
+  const { createStore } = require("../src/store");
+  await withApp({}, async ({ base, dataDir }) => {
+    const found = await api(base, "GET", "/api/discover?q=" + encodeURIComponent("双月湾"));
+    assert.equal(found.json.empty, false);
+    assert.equal(found.json.results.length, 1);
+    assert.equal(found.json.results[0].name, "阿岚");
+    assert.equal(found.json.results[0].slug, "阿岚");
+    assert.equal(found.json.results[0].example, true);
+    const html = await (await fetch(`${base}/u/${encodeURIComponent("阿岚")}`)).text();
+    assert.match(html, /示例/);
+    assert.match(html, /海景双人房/);
+    assert.match(html, /380/);
+    assert.match(html, /theme-simple/);
+    const profile = await (await fetch(`${base}/u/${encodeURIComponent("阿岚")}/profile.json`)).json();
+    assert.equal(profile.name, "阿岚");
+    assert.equal(profile.theme, "simple");
+
+    const store = createStore(dataDir);
+    const kept = store.getSite("林可");
+    store.saveSite({
+      slug: "林可",
+      sessionId: "keep-me",
+      profile: { ...profile, name: "林可", city: "广州" },
+      example: false,
+      publishedAt: Date.now(),
+      updatedAt: Date.now(),
+      visits: 0,
+      avatarAsks: 0,
+    });
+    assert.equal(kept, null);
+    assert.equal(seedExampleIfEmpty(store), null);
+    assert.equal(store.listSites().some((site) => site.slug === "林可"), true);
+    assert.equal(store.getSite("阿岚").example, true);
   });
 });
 

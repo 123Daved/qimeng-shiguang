@@ -5,6 +5,7 @@ const http = require("http");
 const path = require("path");
 const { createStore } = require("./store");
 const { createService } = require("./service");
+const { seedExampleIfEmpty } = require("./seed");
 const { renderSite, renderProfileJson, renderLlms, renderSitemap, absoluteUrl } = require("./render");
 const { resolveInside, isSafeSlug } = require("./security");
 
@@ -52,6 +53,7 @@ function createServer(options = {}) {
     fetchImpl: options.fetchImpl,
   };
   const store = createStore(config.dataDir);
+  seedExampleIfEmpty(store);
   const service = createService(store, config);
 
   const server = http.createServer((req, res) => {
