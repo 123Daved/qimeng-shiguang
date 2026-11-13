@@ -19,6 +19,42 @@ function addMessage(text, role) {
   box.append(body);
   log.append(box);
   log.scrollTop = log.scrollHeight;
+  if (role === "assistant" && speakToggle && speakToggle.checked && window.QDVoice) window.QDVoice.speak(text);
+}
+
+const speakToggle = document.querySelector("#avatar-speak");
+const micButton = document.querySelector("#avatar-mic");
+if (speakToggle) {
+  if (!window.QDVoice || !window.QDVoice.canSpeak) speakToggle.closest("label").hidden = true;
+  else speakToggle.checked = localStorage.getItem("qd-avatar-speak") === "1";
+  speakToggle.addEventListener("change", () => {
+    localStorage.setItem("qd-avatar-speak", speakToggle.checked ? "1" : "0");
+    if (!speakToggle.checked && window.QDVoice) window.QDVoice.cancelSpeak();
+  });
+}
+if (micButton && window.QDVoice && window.QDVoice.supported) {
+  micButton.hidden = false;
+  const recognizer = window.QDVoice.createRecognizer({
+    autoCommit: true,
+    silenceMs: 1400,
+    onInterim(finalText, interim) { input.value = finalText + interim; },
+    onFinal(text) {
+      input.value = text;
+      document.querySelector("#avatar-form").requestSubmit();
+    },
+    onState(state) {
+      micButton.classList.toggle("is-on", state === "listening");
+      micButton.setAttribute("aria-pressed", state === "listening" ? "true" : "false");
+    },
+    onError(code, message) { if (message) input.placeholder = message; },
+  });
+  micButton.addEventListener("click", () => {
+    if (recognizer.listening) recognizer.stop(true);
+    else {
+      window.QDVoice.cancelSpeak();
+      recognizer.start();
+    }
+  });
 }
 
 document.querySelector("#avatar-open").addEventListener("click", () => {

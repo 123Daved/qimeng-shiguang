@@ -12,12 +12,14 @@ const {
   stripPrivateNotes,
   extractProfileFromText,
   applyEdit,
+  inferTheme,
   DEMO_IMPORT,
   TOPIC_IDS,
 } = require("../profile");
 const { isSafeSlug, slugFromName, tokenEquals } = require("../security");
 const { EXAMPLE_SLUG, isExampleAlias } = require("../seed");
 const { qrSvg } = require("../qr");
+const { draftFromTurns } = require("../draft");
 
 function fail(status, message) {
   const error = new Error(message);
@@ -63,7 +65,23 @@ function createService(store, config) {
       lastChanged: session.lastChanged || [],
       fallback: !!session.lastFallback,
       sourceAgent: session.lastSource || "",
+      draft: draftSummary(session),
     };
+  }
+
+  function draftSummary(session) {
+    const result = draftOf(session);
+    return { filled: result.filled, name: result.profile.name, theme: result.profile.theme };
+  }
+
+  function draftOf(session) {
+    return draftFromTurns({ messages: session.messages, imported: importText(session) });
+  }
+
+  function draft(id, token) {
+    const session = requireSession(id, token);
+    const result = draftOf(session);
+    return { profile: result.profile, filled: result.filled, generated: !!session.profile };
   }
 
   function requireSession(id, token) {
@@ -126,16 +144,17 @@ function createService(store, config) {
     };
   }
 
-  async function sendMessage(id, token, text) {
+  async function sendMessage(id, token, text, via) {
     const session = requireSession(id, token);
     const answer = String(text || "").trim();
+    const channel = via === "voice" ? "voice" : "text";
     if (!answer) throw fail(400, "请先写下你的回答。");
     if (answer.length > 4000) throw fail(400, "这段回答太长了，请收在 4000 字以内。");
     const topic = firstMissingTopic(session.coverage) || "style";
-    const vague = isVague(answer);
+    const vague = isVague(answer) && !(topic === "style" && inferTheme(answer));
     const used = session.followups[topic] || 0;
     const follow = vague && used < 1;
-    session.messages.push({ role: "user", content: answer, topic, at: Date.now() });
+    session.messages.push({ role: "user", content: answer, topic, via: channel, at: Date.now() });
     if (follow) session.followups[topic] = used + 1;
     else session.coverage[topic] = true;
 
@@ -163,9 +182,10 @@ function createService(store, config) {
     session.lastFallback = fallback;
     session.updatedAt = Date.now();
     store.saveSession(session);
-    store.addEvent({ type: "interview_turn", sessionId: id, topic, isFollowup: follow, coverage: session.coverage });
+    store.addEvent({ type: "interview_turn", sessionId: id, topic, isFollowup: follow, coverage: session.coverage, via: channel });
+    if (channel === "voice") store.addEvent({ type: "voice_turn", sessionId: id, topic, length: answer.length });
     if (fallback) store.addEvent({ type: "llm_fallback", agent: "interview", sessionId: id });
-    return { ...ownerSession(session), isFollowup: follow, source, fallback };
+    return { ...ownerSession(session), isFollowup: follow, source, fallback, via: channel };
   }
 
   async function addImport(id, token, text, kind) {
@@ -209,6 +229,7 @@ function createService(store, config) {
     const agent = await runAgent("organize", {
       transcript: transcriptOf(session),
       imported: importText(session),
+      turns: session.messages.filter((message) => message.role === "user"),
     }, config);
     let profile = stripPrivateNotes(normalizeProfile(agent.profile), session.imports);
     if (!profile.name) {
@@ -419,6 +440,7 @@ function createService(store, config) {
     getPublicSite,
     requireSession,
     ownerSession,
+    draft,
     importPrompt: IMPORT_PROMPT,
   };
 }
@@ -465,6 +487,7 @@ function cardOf(site) {
     tags: profile.tags.slice(0, 4),
     services: profile.services.slice(0, 2).map((item) => ({ name: item.name, price: item.price })),
     example: !!site.example,
+    theme: profile.theme,
     updatedAt: site.updatedAt || site.publishedAt || 0,
   };
 }

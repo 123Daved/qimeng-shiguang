@@ -123,9 +123,10 @@ async function handle(req, res, ctx) {
     const token = req.headers["x-edit-token"] || url.searchParams.get("key") || "";
     if (method === "GET" && parts.length === 3) return sendJson(res, 200, ctx.service.ownerSession(ctx.service.requireSession(id, token)));
     if (method === "GET" && parts[3] === "preview") return sendPreview(req, res, ctx, id, token);
+    if (method === "GET" && parts[3] === "draft") return sendJson(res, 200, ctx.service.draft(id, token));
     const body = method === "POST" ? await readBody(req) : {};
     const auth = req.headers["x-edit-token"] || body.token || "";
-    if (method === "POST" && parts[3] === "messages") return sendJson(res, 200, await gate(id, () => ctx.service.sendMessage(id, auth, body.text)));
+    if (method === "POST" && parts[3] === "messages") return sendJson(res, 200, await gate(id, () => ctx.service.sendMessage(id, auth, body.text, body.via)));
     if (method === "POST" && parts[3] === "imports") return sendJson(res, 200, await gate(id, () => ctx.service.addImport(id, auth, body.text, body.kind)));
     if (method === "POST" && parts[3] === "profile") return sendJson(res, 200, await gate(id, () => ctx.service.generateProfile(id, auth)));
     if (method === "POST" && parts[3] === "edits") return sendJson(res, 200, await gate(id, () => ctx.service.editProfile(id, auth, body.instruction)));
@@ -143,7 +144,11 @@ async function handle(req, res, ctx) {
     return sendJson(res, 404, { error: "没有这个接口。" });
   }
   if (parts[0] === "preview" && parts[1] && method === "GET") {
-    return sendPreview(req, res, ctx, parts[1], url.searchParams.get("key") || "");
+    return sendPreview(req, res, ctx, parts[1], url.searchParams.get("key") || "", {
+      draft: url.searchParams.get("draft") === "1",
+      highlight: url.searchParams.get("hl") || "",
+      theme: url.searchParams.get("theme") || "",
+    });
   }
   if (parts[0] === "u" && parts[1] && method === "GET") {
     const slug = parts[1];
@@ -164,6 +169,7 @@ async function handle(req, res, ctx) {
     if (parts[2]) return sendText(res, 404, "没有这个文件。", "text/plain; charset=utf-8");
     ctx.service.recordVisit(canonical);
     const html = renderSite({
+      themeOverride: url.searchParams.get("theme") || "",
       profile: site.profile,
       slug: canonical,
       pageUrl: `/u/${encodeURIComponent(canonical)}`,
@@ -177,14 +183,33 @@ async function handle(req, res, ctx) {
   return serveStatic(res, pathname);
 }
 
-function sendPreview(req, res, ctx, id, token) {
+function sendPreview(req, res, ctx, id, token, opts = {}) {
   const session = ctx.service.requireSession(id, token);
-  if (!session.profile) {
+  const useDraft = !session.profile && opts.draft;
+  if (!session.profile && !useDraft) {
     sendText(res, 404, "还没有生成网站。", "text/plain; charset=utf-8");
     return;
   }
   const base = originOf(req, ctx.config);
+  const highlight = String(opts.highlight || "").split(",").map((item) => item.trim()).filter((item) => /^[a-z]{2,16}$/.test(item)).slice(0, 12);
+  if (useDraft) {
+    const draft = ctx.service.draft(id, token);
+    const html = renderSite({
+      profile: draft.profile,
+      slug: "",
+      modelNotice: ctx.config.modelNotice,
+      preview: true,
+      draft: true,
+      filled: draft.filled,
+      built: highlight,
+      themeOverride: opts.theme,
+    });
+    sendText(res, 200, html, "text/html; charset=utf-8");
+    return;
+  }
   const html = renderSite({
+    themeOverride: opts.theme,
+    built: highlight,
     profile: session.profile,
     slug: session.slug || "",
     pageUrl: session.slug ? absoluteUrl(base, session.slug) : "",

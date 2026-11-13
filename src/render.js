@@ -70,9 +70,32 @@ function contactItems(profile) {
     .map(([key, label, value, kind]) => ({ key, label, value, href: kind ? contactHref(kind, value) : "" }));
 }
 
-function sectionClass(name, changed) {
+const SECTION_META = {
+  services: { title: "我能提供", en: "Services", topic: "能提供什么" },
+  about: { title: "关于我", en: "About", topic: "你是谁" },
+  highlights: { title: "经历与作品", en: "Works", topic: "经历与作品" },
+  story: { title: "我的故事", en: "Story", topic: "你的故事" },
+  seeking: { title: "我在寻找", en: "Seeking", topic: "联系与寻找" },
+  contacts: { title: "联系我", en: "Contact", topic: "联系与寻找" },
+};
+
+function sectionClass(name, changed, built) {
   const hit = changed && typeof changed.has === "function" ? changed.has(name) : changed && changed.includes(name);
-  return hit ? "block is-changed" : "block";
+  const classes = ["block", `block-${name}`];
+  if (hit) classes.push("is-changed");
+  if (built && built.has(name)) classes.push("is-built");
+  return classes.join(" ");
+}
+
+function pendingBlock(name) {
+  const meta = SECTION_META[name];
+  return `<div class="pending" aria-hidden="true"><span class="pending-line w60"></span><span class="pending-line w90"></span><span class="pending-line w40"></span></div>
+      <p class="pending-note">待补充 · 回答「${escapeHtml(meta.topic)}」后，这一段会自动长出来</p>`;
+}
+
+function firstGlyph(name) {
+  const chars = Array.from(String(name || "").trim());
+  return chars[0] || "憩";
 }
 
 function renderSite(options) {
@@ -80,81 +103,156 @@ function renderSite(options) {
   const slug = options.slug || "";
   const pageUrl = options.pageUrl || (slug ? `/u/${encodeURIComponent(slug)}` : "");
   const changed = new Set(options.changed || []);
-  const theme = THEMES[profile.theme] || THEMES.warm;
+  const built = new Set(options.built || []);
+  const draft = !!options.draft;
+  const filled = new Set(options.filled || []);
+  const themeId = THEMES[options.themeOverride] ? options.themeOverride : (THEMES[profile.theme] ? profile.theme : "warm");
+  const theme = THEMES[themeId];
   const contacts = contactItems(profile);
   const faqQuestions = profile.faq.map((item) => item.q);
   const boot = jsonForScript({
     slug,
     faqs: faqQuestions,
+    draft,
+    preview: !!options.preview,
   });
   const ld = jsonForScript(jsonLd(profile, options.absoluteUrl || pageUrl));
+  const displayName = profile.name || (draft ? "你的名字" : "未命名");
   const tags = profile.tags.map((tag) => `<li>${escapeHtml(tag)}</li>`).join("");
-  const services = profile.services.map((service) => `
-    <article class="service">
-      <header>
-        <h3>${escapeHtml(service.name)}</h3>
-        ${service.price ? `<p class="price">${escapeHtml(service.price)}</p>` : ""}
-      </header>
-      ${service.description ? `<p>${escapeHtml(service.description)}</p>` : ""}
-      ${service.for_whom ? `<p class="for">适合：${escapeHtml(service.for_whom)}</p>` : ""}
-    </article>`).join("");
-  const highlights = profile.highlights.map((item) => `
-    <article>
-      ${item.title ? `<h3>${escapeHtml(item.title)}</h3>` : ""}
-      ${item.description ? `<p>${escapeHtml(item.description)}</p>` : ""}
-    </article>`).join("");
-  const seeking = profile.seeking.map((item) => `<li><strong>${escapeHtml(item.who)}</strong>${item.description ? `：${escapeHtml(item.description)}` : ""}</li>`).join("");
+  const services = profile.services.map((service, index) => `
+      <article class="service" data-tilt>
+        <span class="svc-index" aria-hidden="true">${String(index + 1).padStart(2, "0")}</span>
+        <header>
+          <h3>${escapeHtml(service.name)}</h3>
+          ${service.price ? `<p class="price">${escapeHtml(service.price)}</p>` : ""}
+        </header>
+        ${service.description ? `<p class="svc-desc">${escapeHtml(service.description)}</p>` : ""}
+        ${service.for_whom ? `<p class="for">适合：${escapeHtml(service.for_whom)}</p>` : ""}
+      </article>`).join("");
+  const highlights = profile.highlights.map((item, index) => `
+        <li class="tl-item">
+          <span class="tl-dot" aria-hidden="true"></span>
+          <span class="tl-index" aria-hidden="true">${String(index + 1).padStart(2, "0")}</span>
+          ${item.title ? `<h3>${escapeHtml(item.title)}</h3>` : ""}
+          ${item.description && item.description !== item.title ? `<p>${escapeHtml(item.description)}</p>` : ""}
+        </li>`).join("");
+  const seeking = profile.seeking.map((item) => `<li class="seek-item"><span class="seek-mark" aria-hidden="true">↗</span><span><strong>${escapeHtml(item.who)}</strong>${item.description ? `<small>${escapeHtml(item.description)}</small>` : ""}</span></li>`).join("");
   const contactHtml = contacts.map((item) => {
     const inner = `${icon(CONTACT_ICONS[item.key] || "link")}<span><small>${escapeHtml(item.label)}</small>${escapeHtml(item.value)}</span>`;
-    if (!item.href) return `<div class="contact">${inner}</div>`;
-    return `<a class="contact" href="${escapeHtml(item.href)}" data-channel="${escapeHtml(item.key)}">${inner}</a>`;
+    if (!item.href) return `<div class="contact" data-spot>${inner}</div>`;
+    return `<a class="contact" data-spot href="${escapeHtml(item.href)}" data-channel="${escapeHtml(item.key)}">${inner}</a>`;
   }).join("");
   const suggestions = faqQuestions.map((q) => `<button type="button" class="chip" data-q="${escapeHtml(q)}">${escapeHtml(q)}</button>`).join("");
   const machine = slug ? `<p class="machine"><a href="/u/${encodeURIComponent(slug)}/profile.json">profile.json</a><a href="/u/${encodeURIComponent(slug)}/llms.txt">llms.txt</a></p>` : "";
   const example = options.example ? `<p class="example-flag">${icon("info")}示例 / 演示数据，不是已核验的真实用户</p>` : "";
-  const preview = options.preview ? `<p class="example-flag">${icon("info")}${options.published ? "预览，修改会同步到已发布的网站" : "预览，还没有发布"}</p>` : "";
+  const previewNote = draft
+    ? "实时草稿：每回答一轮，这里就搭好一段；点「生成网站」后由 AI 正式整理"
+    : options.published ? "预览，修改会同步到已发布的网站" : "预览，还没有发布";
+  const preview = options.preview ? `<p class="example-flag${draft ? " is-draft" : ""}">${icon("info")}${previewNote}</p>` : "";
+  const marqueeItems = [...profile.tags, ...profile.services.map((item) => item.name), profile.city]
+    .filter(Boolean)
+    .filter((item, index, list) => list.indexOf(item) === index)
+    .slice(0, 10);
+  const marquee = marqueeItems.length
+    ? `<div class="marquee" aria-hidden="true"><div class="marquee-track">${[0, 1].map(() => `<span>${marqueeItems.map((item) => `${escapeHtml(item)}<i>✦</i>`).join("")}</span>`).join("")}</div></div>`
+    : "";
+
+  const sections = [];
+  const want = (name, has) => has || (draft && !filled.has(name));
+  if (services || !draft) {
+    sections.push({ name: "services", id: "services", html: services ? `<div class="services">${services}</div>` : "<p class=\"empty\">还没有写下服务。</p>" });
+  } else {
+    sections.push({ name: "services", id: "services", html: pendingBlock("services"), pending: true });
+  }
+  if (want("about", !!profile.about)) sections.push({ name: "about", html: profile.about ? `<p class="statement" data-words>${escapeHtml(profile.about)}</p>` : pendingBlock("about"), pending: !profile.about });
+  if (want("highlights", !!highlights)) sections.push({ name: "highlights", html: highlights ? `<ol class="timeline" data-timeline><span class="tl-line" aria-hidden="true"><i></i></span>${highlights}</ol>` : pendingBlock("highlights"), pending: !highlights });
+  if (want("story", !!profile.story)) sections.push({ name: "story", html: profile.story ? `<blockquote class="story-quote"><span class="quote-mark" aria-hidden="true" data-parallax="0.12">“</span><p data-words>${escapeHtml(profile.story)}</p></blockquote>` : pendingBlock("story"), pending: !profile.story });
+  if (want("seeking", !!seeking)) sections.push({ name: "seeking", html: seeking ? `<ul class="seeking">${seeking}</ul>` : pendingBlock("seeking"), pending: !seeking });
+  sections.push({
+    name: "contacts",
+    id: "contact",
+    html: contactHtml
+      ? `<p class="contact-lead">${escapeHtml(profile.seeking.length ? "如果你正是我在找的人，直接联系我。" : "想找我，直接联系。")}</p><div class="contacts">${contactHtml}</div>`
+      : draft ? pendingBlock("contacts") : "<div class=\"contacts\"><p class=\"empty\">还没有留下联系方式。</p></div>",
+    pending: !contactHtml && draft,
+  });
+  const sectionHtml = sections.map((section, index) => {
+    const meta = SECTION_META[section.name];
+    const num = String(index + 1).padStart(2, "0");
+    return `
+    <section id="${section.id || `sec-${section.name}`}" class="${sectionClass(section.name, changed, built)}${section.pending ? " is-pending" : ""}" data-section="${section.name}" data-reveal>
+      <div class="sec-head">
+        <span class="sec-num" aria-hidden="true">${num}</span>
+        <h2>${meta.title}</h2>
+        <span class="sec-en" aria-hidden="true">${meta.en}</span>
+      </div>
+      ${section.html}
+    </section>`;
+  }).join("");
+  const navLinks = sections
+    .filter((section) => !section.pending)
+    .map((section) => `<a href="#${section.id || `sec-${section.name}`}" data-nav="${section.name}">${SECTION_META[section.name].title}</a>`)
+    .join("");
+  const heroPending = draft && !profile.name;
+  const heroClass = ["hero", changed.has("theme") || changed.has("accent") || changed.has("name") || changed.has("about") ? "is-changed" : "", built.has("hero") || built.has("theme") ? "is-built" : "", heroPending ? "is-pending" : ""].filter(Boolean).join(" ");
 
   return `<!DOCTYPE html>
-<html lang="zh-CN" data-qd-product="life" data-qd-theme="light">
+<html lang="zh-CN" data-qd-product="life" data-qd-theme="${themeId === "cinema" ? "dark" : "light"}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${escapeHtml(profile.name || "未命名")} · 憩梦时光</title>
+  <title>${escapeHtml(displayName)} · 憩梦时光</title>
   <meta name="description" content="${escapeHtml(profile.tagline || profile.about || "个人网站")}">
   ${pageUrl ? `<link rel="canonical" href="${escapeHtml(options.absoluteUrl || pageUrl)}">` : ""}
-  <meta name="theme-color" content="${escapeHtml(theme.accent)}">
+  ${draft ? '<meta name="robots" content="noindex">' : ""}
+  <meta name="theme-color" content="${themeId === "cinema" ? "#16110E" : escapeHtml(theme.accent)}">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/site.css">
   <script type="application/ld+json">${ld}</script>
 </head>
-<body class="site theme-${escapeHtml(profile.theme)}" style="--site-accent:${escapeHtml(theme.accent)}">
+<body class="site theme-${escapeHtml(themeId)}${draft ? " is-draft" : ""}${options.preview ? " is-preview" : ""}" style="--site-accent:${escapeHtml(theme.accent)}">
   <a class="skip" href="#services">跳到服务清单</a>
+  <div class="grain" aria-hidden="true"></div>
+  <div class="cursor-glow" aria-hidden="true"></div>
   ${example}
   ${preview}
-  <header class="hero ${changed.has("theme") || changed.has("accent") || changed.has("name") || changed.has("about") ? "is-changed" : ""}">
-    <p class="brand" data-reveal="fade">${MARK}<span>憩梦时光</span></p>
-    <h1 data-reveal style="--i:1">${escapeHtml(profile.name || "未命名")}</h1>
-    ${profile.title ? `<p class="title" data-reveal style="--i:2">${escapeHtml(profile.title)}</p>` : ""}
-    ${profile.tagline ? `<p class="tagline" data-reveal style="--i:3">${escapeHtml(profile.tagline)}</p>` : ""}
-    ${profile.city ? `<p class="city" data-reveal style="--i:4">${icon("map")}${escapeHtml(profile.city)}</p>` : ""}
-    ${tags ? `<ul class="tags" data-reveal style="--i:5">${tags}</ul>` : ""}
+  <nav class="site-nav" aria-label="页面导航">
+    <a class="site-brand" href="#top">${MARK}<span>${escapeHtml(displayName)}</span></a>
+    <div class="site-links">${navLinks}</div>
+  </nav>
+  <header class="${heroClass}" id="top" data-section="hero">
+    <div class="hero-bg" aria-hidden="true">
+      <span class="hero-orb o1"></span>
+      <span class="hero-orb o2"></span>
+      <span class="hero-glyph" data-parallax="0.3">${escapeHtml(firstGlyph(profile.name))}</span>
+    </div>
+    <div class="hero-grid">
+      <div class="hero-copy">
+        <p class="brand kicker" data-reveal="fade">${MARK}<span>憩梦时光 · 个人门面${profile.city ? ` · ${escapeHtml(profile.city)}` : ""}</span></p>
+        <h1 data-scramble data-reveal style="--i:1">${escapeHtml(displayName)}</h1>
+        ${profile.title ? `<p class="title" data-reveal style="--i:2">${escapeHtml(profile.title)}</p>` : heroPending ? '<p class="title pending-text" data-reveal style="--i:2">先说说你是谁</p>' : ""}
+        ${profile.tagline ? `<p class="tagline" data-reveal style="--i:3">${escapeHtml(profile.tagline)}</p>` : ""}
+        <div class="hero-cta" data-reveal style="--i:4">
+          <a class="btn btn-primary" href="#contact" data-magnetic>${icon("chat")}<span>联系我</span></a>
+          <a class="btn btn-ghost" href="#services"><span>我能提供什么</span>${icon("arrow")}</a>
+        </div>
+      </div>
+      <aside class="id-card" data-tilt data-reveal="right" style="--i:2" aria-label="名片">
+        <span class="id-mono" aria-hidden="true">${escapeHtml(firstGlyph(profile.name))}</span>
+        <p class="id-label">PROFILE · ${new Date().getFullYear()}</p>
+        <p class="id-name">${escapeHtml(displayName)}</p>
+        ${profile.title ? `<p class="id-title">${escapeHtml(profile.title)}</p>` : ""}
+        ${profile.city ? `<p class="city">${icon("map")}${escapeHtml(profile.city)}</p>` : ""}
+        ${tags ? `<ul class="tags">${tags}</ul>` : ""}
+        <p class="id-machine">${icon("check")}人能读，AI 也能读</p>
+      </aside>
+    </div>
+    ${marquee}
   </header>
-  <main>
-    <section id="services" class="${sectionClass("services", changed)}" data-section="services" data-reveal>
-      <h2>我能提供</h2>
-      ${services || "<p class=\"empty\">还没有写下服务。</p>"}
-    </section>
-    ${profile.about ? `<section class="${sectionClass("about", changed)}" data-section="about" data-reveal><h2>关于我</h2><p>${escapeHtml(profile.about)}</p></section>` : ""}
-    ${highlights ? `<section class="${sectionClass("highlights", changed)}" data-section="highlights" data-reveal><h2>经历与作品</h2>${highlights}</section>` : ""}
-    ${profile.story ? `<section class="${sectionClass("story", changed)}" data-section="story" data-reveal><h2>我的故事</h2><p>${escapeHtml(profile.story)}</p></section>` : ""}
-    ${seeking ? `<section class="${sectionClass("seeking", changed)}" data-section="seeking" data-reveal><h2>我在寻找</h2><ul>${seeking}</ul></section>` : ""}
-    <section class="${sectionClass("contacts", changed)}" data-section="contacts" data-reveal>
-      <h2>联系我</h2>
-      <div class="contacts">${contactHtml || "<p class=\"empty\">还没有留下联系方式。</p>"}</div>
-    </section>
+  <main>${sectionHtml}
   </main>
   <footer class="site-footer">
-    <a class="footer-cta" href="/?from=footer&amp;ref=${encodeURIComponent(slug)}">我也要一个 →</a>
+    <a class="footer-cta" href="/?from=footer&amp;ref=${encodeURIComponent(slug)}" data-magnetic>我也要一个 →</a>
     ${machine}
     <p class="brand-lockup">${MARK}<span><span class="mother">憩梦</span> · 憩梦时光</span></p>
     <p class="notice">${escapeHtml(options.modelNotice || "")}</p>
@@ -166,19 +264,23 @@ function renderSite(options) {
       <p class="ai-flag">AI 生成</p>
       <button type="button" class="text-button" id="avatar-close">关闭</button>
     </header>
-    <p class="avatar-note">只根据这份公开档案回答。不知道的事会请你直接联系本人。</p>
+    <p class="avatar-note">只根据这份公开档案回答。不知道的事会请你直接联系本人。可以打字，也可以按麦克风直接问。</p>
     <div class="chips" id="avatar-chips">${suggestions}</div>
     <div class="avatar-log" id="avatar-log" aria-live="polite"></div>
     <form id="avatar-form">
       <label for="avatar-input">你的问题</label>
       <div class="composer">
         <input id="avatar-input" name="question" maxlength="300" placeholder="例如：住宿多少钱？" autocomplete="off">
+        <button class="mic-mini" type="button" id="avatar-mic" aria-label="用语音提问" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v2.5"/></svg></button>
         <button class="primary" type="submit">发送</button>
       </div>
+      <label class="speak-toggle"><input type="checkbox" id="avatar-speak"> 朗读回答</label>
     </form>
   </section>
   <script>window.__QD_SITE__=${boot};</script>
   <script src="/motion.js"></script>
+  <script src="/fx.js"></script>
+  <script src="/voice.js"></script>
   <script src="/site.js"></script>
 </body>
 </html>`;

@@ -9,9 +9,11 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="preload" as="image" href="/img/hero-seaside.webp" type="image/webp" fetchpriority="high">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/extend.css">
 </head>
 <body class="landing">
   <a class="skip" href="#main">跳到主要内容</a>
+  <div class="cursor-glow" aria-hidden="true"></div>
   <header class="topbar topbar--overlay">
     <div class="wrap">
       <a class="wordmark" href="/"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6" fill="#A9532F"/><circle cx="12" cy="8.2" r="1.5" fill="#FFFFFF"/><path d="M6 14.5c2.2-3.2 4-4.8 6-4.8s3.8 1.6 6 4.8" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16.8h10" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round"/></svg>憩梦时光</a>
@@ -30,9 +32,9 @@
       <div class="hero-inner">
         <p class="eyebrow" data-reveal style="--i:0">憩梦 · 个人门面</p>
         <h1 class="display" id="hero-title" data-reveal style="--i:1">憩梦时光</h1>
-        <p class="lede" data-reveal style="--i:2">聊 10 分钟，AI 帮你生成一个「既能被人找到、也能被 AI 找到」的个人网站。</p>
+        <p class="lede" data-reveal style="--i:2">对着麦克风聊 10 分钟，AI 边听边搭，生成一个「既能被人找到、也能被 AI 找到」的个人网站。</p>
         <div class="actions" data-reveal style="--i:3">
-          <button class="primary btn-lg" id="start" type="button" data-start="interview"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>开始制作</button>
+          <button class="primary btn-lg" id="start" type="button" data-start="interview" data-magnetic><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 12h14"/><path d="M13 6l6 6-6 6"/></svg>开始制作</button>
           <button class="secondary btn-lg" id="demo" type="button" data-start="demo"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M12 3.5l1.2 5.3L18.5 10 13.2 11.2 12 16.5 10.8 11.2 5.5 10l5.3-1.2z"/></svg>一键体验示例</button>
           <span class="demo-note">示例</span>
         </div>
@@ -45,6 +47,53 @@
       <a class="scroll-cue" href="#how">向下了解</a>
     </section>
 
+    <section class="section voice-show" id="voice" aria-labelledby="voice-title">
+      <div class="container voice-grid">
+        <div data-reveal="left">
+          <p class="eyebrow">语音工作室</p>
+          <h2 class="section-title" id="voice-title">说出来，网站就一段一段长出来</h2>
+          <p class="find-copy">不用写文案。AI 把问题读给你听，你像聊天一样回答；转写实时出现，右边的网页随着每一句话搭好一块。</p>
+          <ol class="voice-points">
+            <li><span class="vp-num">01</span><div><h3>实时转写</h3><p>中文语音识别，边说边出字。点按、按住或连续对话，三种说法随你。</p></div></li>
+            <li><span class="vp-num">02</span><div><h3>AI 朗读追问</h3><p>一次只问一个问题，答得笼统再追问一次。朗读可以随时关掉。</p></div></li>
+            <li><span class="vp-num">03</span><div><h3>边说边搭</h3><p>每答完一题，预览里对应的那一段就带着动画长出来。说「生成网站」「换成光影风格」「发布」都能直接执行。</p></div></li>
+          </ol>
+          <div class="actions"><button class="primary btn-lg" type="button" data-start="interview" data-magnetic><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect x="9" y="3.5" width="6" height="11" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0"/><path d="M12 18v2.5"/></svg>用说话开始制作</button></div>
+        </div>
+        <div class="voice-demo" data-reveal="right" aria-label="语音工作室示意（动画演示）">
+          <div class="vd-stage">
+            <div class="vd-orb" aria-hidden="true"><span></span><span></span><span></span><i></i></div>
+            <p class="vd-q">说一项你能提供的服务，包括名称、价格和适合谁？</p>
+            <p class="vd-t"><span>海景双人房，看得到日出，</span><em>三百八十元起……</em></p>
+          </div>
+          <div class="vd-site" aria-hidden="true">
+            <span class="vd-bar"></span>
+            <span class="vd-name">阿岚</span>
+            <span class="vd-card c1"></span><span class="vd-card c2"></span><span class="vd-card c3"></span>
+            <span class="vd-line"></span><span class="vd-line short"></span>
+          </div>
+          <p class="vd-cap">示意动画</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section theme-gallery" aria-labelledby="themes-title">
+      <div class="container">
+        <div class="section-head" data-reveal>
+          <p class="eyebrow">五套主题</p>
+          <h2 class="section-title" id="themes-title">同一份档案，五种气质</h2>
+          <p class="find-copy">温暖、简约、墨色之外，新增「光影」与「杂志」。都带着憩梦的赤陶色，一句话就能切换。点开看示例阿岚。</p>
+        </div>
+        <div class="tg-grid" data-stagger>
+          <a class="tg-card tg-cinema" href="/u/alan?theme=cinema" data-tilt data-reveal><span class="tg-prev" aria-hidden="true"><b>阿岚</b><i></i><i></i></span><strong>光影</strong><small>暗场、大字、随滚动逐字点亮</small></a>
+          <a class="tg-card tg-editorial" href="/u/alan?theme=editorial" data-tilt data-reveal><span class="tg-prev" aria-hidden="true"><b>阿岚</b><i></i><i></i></span><strong>杂志</strong><small>粗线分栏、描边期号、便当格</small></a>
+          <a class="tg-card tg-warm" href="/u/alan?theme=warm" data-tilt data-reveal><span class="tg-prev" aria-hidden="true"><b>阿岚</b><i></i><i></i></span><strong>温暖</strong><small>暖纸底、柔光、圆角卡片</small></a>
+          <a class="tg-card tg-ink" href="/u/alan?theme=ink" data-tilt data-reveal><span class="tg-prev" aria-hidden="true"><b>阿岚</b><i></i><i></i></span><strong>墨色</strong><small>宣纸底、墨线、宽字距</small></a>
+          <a class="tg-card tg-simple" href="/u/alan?theme=simple" data-tilt data-reveal><span class="tg-prev" aria-hidden="true"><b>阿岚</b><i></i><i></i></span><strong>简约</strong><small>白底、细线、网格</small></a>
+        </div>
+      </div>
+    </section>
+
     <section class="section" id="how" aria-labelledby="how-title">
       <div class="container">
         <div class="section-head" data-reveal>
@@ -55,7 +104,7 @@
           <li class="step-item" data-reveal>
             <p class="numeral">01</p>
             <h3>采访或导入</h3>
-            <p>一次只问一个问题。也可以把其他 AI 对你的了解贴回来。</p>
+            <p>开口说或打字，一次只问一个问题。也可以把其他 AI 对你的了解贴回来。</p>
           </li>
           <li class="step-item" data-reveal>
             <p class="numeral">02</p>
@@ -175,6 +224,7 @@
     </div>
   </footer>
   <script src="/motion.js"></script>
+  <script src="/fx.js"></script>
   <script src="/landing.js"></script>
 </body>
 </html>

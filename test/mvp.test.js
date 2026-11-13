@@ -471,10 +471,10 @@ test("空数据目录启动时种入示例网站阿岚", async () => {
     assert.match(html, /示例/);
     assert.match(html, /海景双人房/);
     assert.match(html, /380/);
-    assert.match(html, /theme-simple/);
+    assert.match(html, /theme-editorial/);
     const profile = await (await fetch(`${base}/u/${encodeURIComponent("阿岚")}/profile.json`)).json();
     assert.equal(profile.name, "阿岚");
-    assert.equal(profile.theme, "simple");
+    assert.equal(profile.theme, "editorial");
 
     const store = createStore(dataDir);
     const kept = store.getSite("林可");
@@ -499,7 +499,7 @@ test("空数据目录启动时种入示例网站阿岚", async () => {
     assert.match(aliasHtml, /阿岚/);
     assert.match(aliasHtml, /示例/);
     assert.match(aliasHtml, /海景双人房/);
-    assert.match(aliasHtml, /theme-simple/);
+    assert.match(aliasHtml, /theme-editorial/);
     const aliasProfile = await (await fetch(`${base}/u/alan/profile.json`)).json();
     assert.equal(aliasProfile.name, "阿岚");
     assert.equal(aliasProfile.slug, "阿岚");

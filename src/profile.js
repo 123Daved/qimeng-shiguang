@@ -15,6 +15,8 @@ const THEMES = {
   warm: { id: "warm", label: "温暖", accent: "#A9532F" },
   simple: { id: "simple", label: "简约", accent: "#924526" },
   ink: { id: "ink", label: "墨色", accent: "#7C3B22" },
+  cinema: { id: "cinema", label: "光影", accent: "#A9532F" },
+  editorial: { id: "editorial", label: "杂志", accent: "#924526" },
 };
 
 function blankContacts() {
@@ -51,6 +53,8 @@ function asObject(value) {
 
 function inferTheme(text) {
   const raw = String(text ?? "");
+  if (/光影|电影感|电影风|暗色|深色|cinema/i.test(raw)) return "cinema";
+  if (/杂志|画报|editorial|magazine/i.test(raw)) return "editorial";
   if (/简约|极简|干净/.test(raw)) return "simple";
   if (/墨色|墨韵|故事感|沉稳/.test(raw)) return "ink";
   if (/温暖|温馨|暖/.test(raw)) return "warm";
@@ -120,7 +124,7 @@ function coverageFromText(text) {
     work: /经历与作品|经历：|作品：/.test(raw),
     story: /我的故事|之所以/.test(raw),
     seek: /联系方式|微信|电话|邮箱|小红书|抖音|正在寻找/.test(raw),
-    style: /网站风格|想要温暖|想要简约|想要墨色|风格想要|风格换成/.test(raw),
+    style: /网站风格|想要温暖|想要简约|想要墨色|想要光影|想要杂志|风格想要|风格换成/.test(raw),
   };
 }
 
@@ -282,7 +286,7 @@ function classifyInstruction(instruction) {
   const text = String(instruction || "").trim();
   if (/加一个服务|新增服务|增加一项服务|加一项服务/.test(text)) return "add_service";
   if (/简介|关于我|文案|活泼|写得/.test(text) && !/风格/.test(text)) return "about";
-  if (/简约|极简|温暖|墨色|风格|主题/.test(text)) return "theme";
+  if (/简约|极简|温暖|墨色|光影|电影感|杂志|画报|风格|主题/.test(text)) return "theme";
   return "general";
 }
 

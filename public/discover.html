@@ -7,9 +7,11 @@
   <meta name="theme-color" content="#A9532F">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/extend.css">
 </head>
-<body>
+<body class="discover-page">
   <a class="skip" href="#q">跳到搜索</a>
+  <div class="cursor-glow" aria-hidden="true"></div>
   <header class="topbar">
     <div class="wrap">
       <a class="wordmark" href="/"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6" fill="#A9532F"/><circle cx="12" cy="8.2" r="1.5" fill="#FFFFFF"/><path d="M6 14.5c2.2-3.2 4-4.8 6-4.8s3.8 1.6 6 4.8" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16.8h10" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round"/></svg>憩梦时光</a>
@@ -22,8 +24,8 @@
   <section class="page-band">
     <div class="wrap">
       <p class="eyebrow" data-reveal>AI 时代人找人</p>
-      <h1 data-reveal style="--i:1">发现</h1>
-      <p class="lede" data-reveal style="--i:2">按关键词找人。这里只列出已经发布的网站，不会编造。</p>
+      <h1 class="display-sm" data-reveal style="--i:1">发现</h1>
+      <p class="lede" data-reveal style="--i:2">AI 时代人找人：按关键词找到已经发布的人。这里只列出真实发布的网站，不会编造；每个人也都有给 AI 读的 profile.json。</p>
     </div>
   </section>
   <main class="wrap discover">
@@ -51,6 +53,7 @@
   </footer>
   <script src="/icons.js"></script>
   <script src="/motion.js"></script>
+  <script src="/fx.js"></script>
   <script src="/discover.js"></script>
 </body>
 </html>

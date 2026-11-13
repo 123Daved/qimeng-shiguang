@@ -9,6 +9,6 @@
   "scripts": {
     "start": "node src/server.js",
     "demo": "node scripts/demo.js",
-    "test": "node --test --test-concurrency=1 test/mvp.test.js"
+    "test": "node --test --test-concurrency=1 test/mvp.test.js test/studio.test.js"
   }
 }

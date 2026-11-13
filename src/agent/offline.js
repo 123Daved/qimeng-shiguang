@@ -2,6 +2,7 @@
 
 const { extractProfileFromText, normalizeProfile, applyEdit } = require("../profile");
 const { questionFor } = require("./prompts");
+const { draftFromTurns } = require("../draft");
 
 function offlineInterview({ topic, follow }) {
   return {
@@ -12,7 +13,10 @@ function offlineInterview({ topic, follow }) {
   };
 }
 
-function offlineOrganize({ transcript, imported }) {
+function offlineOrganize({ transcript, imported, turns }) {
+  if (Array.isArray(turns) && turns.length) {
+    return { profile: draftFromTurns({ messages: turns, imported: imported || "" }).profile };
+  }
   return { profile: extractProfileFromText(`${imported || ""}\n${transcript || ""}`) };
 }
 

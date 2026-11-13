@@ -6,7 +6,8 @@ function icon(name) {
 
 function card(person, index) {
   const link = document.createElement("a");
-  link.className = "person";
+  link.className = `person person-${person.theme || "warm"}`;
+  link.setAttribute("data-tilt", "");
   link.href = person.url;
   link.setAttribute("data-reveal", "");
   link.style.setProperty("--i", String(Math.min(index, 6)));
@@ -17,7 +18,12 @@ function card(person, index) {
   const go = document.createElement("span");
   go.className = "person-go";
   go.innerHTML = `打开网站${icon("arrow")}`;
+  const mono = document.createElement("span");
+  mono.className = "person-mono";
+  mono.setAttribute("aria-hidden", "true");
+  mono.textContent = Array.from(person.name || "憩")[0];
   head.append(name, go);
+  link.append(mono);
   link.append(head);
   const title = document.createElement("p");
   title.className = "person-meta";
@@ -76,6 +82,7 @@ async function search(q) {
   empty.classList.add("hidden");
   data.results.forEach((person, index) => results.append(card(person, index)));
   if (window.QDMotion) window.QDMotion.observe(results);
+  if (window.QDFx) window.QDFx.bind(results);
 }
 
 fetch("/api/config").then((response) => response.json()).then((config) => {

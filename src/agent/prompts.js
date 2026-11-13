@@ -24,8 +24,8 @@ const QUESTIONS = {
   story_follow: "有没有一个具体的瞬间，让你决定做下去？",
   seek: "访客怎么联系你，你又在寻找什么样的合作？",
   seek_follow: "留一个联系方式（微信、电话或邮箱），再说说你最想找到谁？",
-  style: "网站想要温暖、简约，还是墨色？",
-  style_follow: "在温暖、简约、墨色里选一个就好？",
+  style: "网站想要温暖、简约、墨色、光影，还是杂志风？",
+  style_follow: "在温暖、简约、墨色、光影、杂志里选一个就好？",
 };
 
 function questionFor(topic, follow) {
@@ -37,7 +37,7 @@ function interviewMessages({ topic, follow, answer, transcript, imported }) {
   return [
     {
       role: "system",
-      content: "你是「憩梦时光」的采访官。用温暖、短、口语的中文一次只问一个问题。不要编造对方没说过的事实，不要复述内部备注。只输出 JSON：{\"reply\":\"只含一个问句\",\"topic\":\"who|offer|work|story|seek|style\",\"is_followup\":false}",
+      content: "你是「憩梦时光」的采访官。用温暖、短、口语的中文一次只问一个问题。对方的回答可能来自语音识别，会有同音错字和口头语，按意思理解即可，不要纠正对方。不要编造对方没说过的事实，不要复述内部备注。只输出 JSON：{\"reply\":\"只含一个问句\",\"topic\":\"who|offer|work|story|seek|style\",\"is_followup\":false}",
     },
     {
       role: "user",
@@ -57,7 +57,7 @@ function organizeMessages({ transcript, imported }) {
   return [
     {
       role: "system",
-      content: "你是「憩梦时光」的整理师。把材料整理成人生档案 JSON（schema_version 0.1）。只用材料里明确说过的事实，不知道就用空字符串或空数组。内部备注和对方标明不公开的内容不要写进任何字段。不要输出 HTML，不要 Markdown。theme 只能是 warm、simple、ink：温暖用 warm，简约用 simple，墨色或故事感用 ink，没说用 warm。about 只保留开头一两句自我介绍，不要把经历和故事再抄进去。highlights 写经历与作品，story 写故事，三者不要互相复制。services 的 description 不要重复 price 和 for_whom。",
+      content: "你是「憩梦时光」的整理师。把材料整理成人生档案 JSON（schema_version 0.1）。只用材料里明确说过的事实，不知道就用空字符串或空数组。采访记录可能来自语音识别，会有同音错字、重复和“嗯、那个”之类的口头语，按意思整理成书面语，不要照抄语气词。内部备注和对方标明不公开的内容不要写进任何字段。不要输出 HTML，不要 Markdown。theme 只能是 warm、simple、ink、cinema、editorial：温暖用 warm，简约用 simple，墨色或故事感用 ink，光影、电影感或深色用 cinema，杂志、画报或作品集用 editorial，没说用 warm。about 只保留开头一两句自我介绍，不要把经历和故事再抄进去。highlights 写经历与作品，story 写故事，三者不要互相复制。services 的 description 不要重复 price 和 for_whom。",
     },
     {
       role: "user",
@@ -70,7 +70,7 @@ function editMessages({ profile, instruction }) {
   return [
     {
       role: "system",
-      content: "你是「憩梦时光」的编辑。按一句自然语言修改档案，只改被要求的部分，其他字段保持原样。风格换成简约只改 theme 为 simple；温暖只改 theme 为 warm；墨色只改 theme 为 ink。加一个服务只在 services 末尾追加。改简介只改 about，不新增事实。只输出完整档案 JSON，不要 Markdown。",
+      content: "你是「憩梦时光」的编辑。按一句自然语言修改档案，只改被要求的部分，其他字段保持原样。风格换成简约只改 theme 为 simple；温暖只改 theme 为 warm；墨色只改 theme 为 ink；光影只改 theme 为 cinema；杂志只改 theme 为 editorial。加一个服务只在 services 末尾追加。改简介只改 about，不新增事实。只输出完整档案 JSON，不要 Markdown。",
     },
     {
       role: "user",
