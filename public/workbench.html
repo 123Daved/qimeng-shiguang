@@ -61,12 +61,27 @@
         <span class="t-placeholder" id="t-placeholder">你说的话会实时出现在这里</span>
       </div>
 
+      <p class="pick-chip hidden" id="pick-chip" role="status">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20h4l10-10-4-4L4 16z"/><path d="M12.5 7.5l4 4"/></svg>
+        <span id="pick-text"></span>
+        <button type="button" class="pick-clear" id="pick-clear" aria-label="取消选中的版块"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
+      </p>
+
+      <div class="talk-actions" role="group" aria-label="对话控制（也可以直接说出来）">
+        <button type="button" class="talk-btn" data-command="skip"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M5 5l9 7-9 7z"/><path d="M18 5v14"/></svg>跳过</button>
+        <button type="button" class="talk-btn" data-command="back"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>返回</button>
+        <button type="button" class="talk-btn" data-command="redo"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4 20h4l10-10-4-4L4 16z"/><path d="M12.5 7.5l4 4"/></svg>我说错了</button>
+        <button type="button" class="talk-btn" data-command="repeat"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.5 9.5h3l4.5-4v13l-4.5-4h-3z"/><path d="M15.5 9a4 4 0 0 1 0 6"/></svg>再说一遍</button>
+      </div>
+
+      <ol class="recaps hidden" id="recaps" aria-label="已经记下的要点"></ol>
+
       <div class="voice-row" id="voice-row">
         <div class="seg seg-sm" role="radiogroup" aria-label="说话方式">
           <button type="button" class="seg-btn" role="radio" aria-checked="true" data-talk="tap" id="talk-tap">点按 / 按住说话</button>
           <button type="button" class="seg-btn" role="radio" aria-checked="false" data-talk="continuous" id="talk-continuous">连续对话</button>
         </div>
-        <p class="voice-hint" id="voice-hint">点一下开始，说完停顿片刻会自动发送；也可以按住麦克风或空格键说话，松开即发送。</p>
+        <p class="voice-hint" id="voice-hint">点一下开始，说完停顿片刻会自动发送；也可以按住麦克风或空格键说话，松开即发送。AI 说话时开口或点麦克风可以打断。</p>
       </div>
 
       <form id="answer-form" class="composer-card">

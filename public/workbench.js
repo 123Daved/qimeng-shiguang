@@ -2,7 +2,11 @@
 
 /*
  * 憩梦时光 · 语音工作室
- * 语音采访（识别 + 朗读 + 声纹球）→ 实时草稿预览逐段搭建 → AI 正式生成 → 换风格 / 一句话修改 → 发布。
+ * 语音采访（识别 + 按句朗读 + 声纹球）→ 实时草稿预览逐段搭建 → AI 正式生成 → 换风格 / 一句话修改 → 发布。
+ *
+ * 对话五个状态：idle 待命 / listening 在听 / thinking 思考 / speaking 在说 / error 出错。
+ * 一轮对话走流式接口 /turns：采访官说一句、这里显示并朗读一句；用户一开口就打断。
+ * 降级顺序：浏览器识别 → 服务端识别（已配置时）→ 打字；流式失败 → 普通接口；都不丢已记录的内容。
  */
 
 const TOPICS = [
@@ -40,7 +44,14 @@ const params = new URLSearchParams(location.search);
 const sid = params.get("sid") || "";
 const key = params.get("key") || "";
 const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-const Voice = window.QDVoice || { supported: false, canSpeak: false, speak: () => false, cancelSpeak() {}, createMeter: () => ({ open: async () => false, read: () => ({ level: 0 }), active: false }) };
+const Voice = window.QDVoice || {
+  supported: false,
+  canSpeak: false,
+  canRecord: false,
+  createMeter: () => ({ open: async () => false, read: () => ({ level: 0 }), close() {}, active: false }),
+  createSpeaker: () => ({ enqueue: () => false, cancel() {}, whenIdle: () => Promise.resolve(), level: () => 0, speaking: false }),
+  createBargeIn: () => ({ start: () => false, stop() {}, active: false }),
+};
 
 const $ = (selector) => document.querySelector(selector);
 const studio = $("#studio");
@@ -83,6 +94,10 @@ const state = {
   wasListening: false,
   stage: "idle",
   level: 0,
+  picked: null,
+  pendingListen: false,
+  voiceConfig: { asr: { server: false }, tts: { server: false } },
+  asr: "none",
 };
 
 /* ------------------------------------------------------------------ utilities */
@@ -121,21 +136,49 @@ function messageId(message, index) {
 const STAGE_TEXT = {
   idle: "准备好了",
   listening: "正在听…",
-  thinking: "正在想下一个问题…",
-  speaking: "正在朗读问题…",
-  building: "正在生成网站…",
-  done: "完成",
+  thinking: "正在想…",
+  speaking: "正在说…",
+  error: "出了点问题",
 };
+// 旧的 building / done 并入五个状态：生成中属于「思考」，完成后回到「待命」，文字单独说明。
+const STAGE_ALIAS = { building: ["thinking", "正在生成网站…"], done: ["idle", "完成"] };
 
 function setStage(next, text) {
-  state.stage = next;
-  stage.dataset.state = next;
-  statusText.textContent = text || STAGE_TEXT[next] || "";
-  micButton.setAttribute("aria-pressed", next === "listening" || state.loop ? "true" : "false");
-  if (next === "listening") micLabel.textContent = state.talk === "continuous" ? "连续对话中" : "正在听";
+  const alias = STAGE_ALIAS[next];
+  const name = alias ? alias[0] : next;
+  state.stage = name;
+  stage.dataset.state = name;
+  statusText.textContent = text || (alias ? alias[1] : STAGE_TEXT[name]) || "";
+  micButton.setAttribute("aria-pressed", name === "listening" || state.loop ? "true" : "false");
+  if (name === "listening") micLabel.textContent = state.talk === "continuous" ? "连续对话中" : "正在听";
+  else if (name === "speaking" && voiceReady()) micLabel.textContent = "点按打断";
   else if (state.loop) micLabel.textContent = "暂停对话";
-  else micLabel.textContent = Voice.supported ? (state.talk === "continuous" ? "开始对话" : "点按说话") : "仅支持打字";
-  ttsToggle.classList.toggle("is-speaking", next === "speaking");
+  else if (name === "error" && voiceReady()) micLabel.textContent = "再试一次";
+  else micLabel.textContent = voiceReady() ? (state.talk === "continuous" ? "开始对话" : "点按说话") : "仅支持打字";
+  ttsToggle.classList.toggle("is-speaking", name === "speaking");
+  if (name === "idle" || name === "error") scheduleMicRelease();
+}
+
+function voiceReady() { return !!recognizer; }
+
+// 麦克风用完就还：待命超过 45 秒且不在连续对话中，释放麦克风（浏览器标签上的录音标记会消失）。
+let releaseTimer = 0;
+function scheduleMicRelease() {
+  window.clearTimeout(releaseTimer);
+  releaseTimer = window.setTimeout(() => {
+    if (!state.listening && !state.loop && !speaker.speaking && state.stage !== "thinking") meter.close();
+  }, 45000);
+}
+
+function logEvent(type) {
+  fetch("/api/events", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ type }) }).catch(() => {});
+}
+
+function enterError(message, kind) {
+  bargeIn.stop();
+  speaker.cancel();
+  setStage("error", kind || STAGE_TEXT.error);
+  showNotice(message);
 }
 
 /* ------------------------------------------------------------------ voice orb */
@@ -170,8 +213,8 @@ const orb = (() => {
     const meterData = meter.active ? meter.read() : { level: 0, bands: null };
     let target = 0;
     if (state.stage === "listening") target = meter.active ? meterData.level : synthetic;
-    else if (state.stage === "speaking") target = 0.28 + 0.22 * Math.abs(Math.sin(t * 6.3)) * Math.abs(Math.sin(t * 2.1));
-    else if (state.stage === "thinking" || state.stage === "building") target = 0.12;
+    else if (state.stage === "speaking") target = speaker.speaking ? speaker.level() : 0.1;
+    else if (state.stage === "thinking") target = 0.12;
     synthetic *= 0.94;
     smooth += (target - smooth) * 0.18;
     state.level = smooth;
@@ -241,7 +284,7 @@ const orb = (() => {
     ctx.stroke();
 
     // 思考中：旋转的三个点
-    if (state.stage === "thinking" || state.stage === "building") {
+    if (state.stage === "thinking") {
       for (let k = 0; k < 3; k += 1) {
         const a = t * 2.4 + (k * Math.PI * 2) / 3;
         const r = base * 1.62;
@@ -264,6 +307,42 @@ const orb = (() => {
 })();
 
 const meter = Voice.createMeter();
+
+/* ------------------------------------------------------------------ speaker + barge-in */
+function makeSpeaker(serverTts) {
+  return Voice.createSpeaker({
+    fetchAudio: serverTts ? async (text) => {
+      const response = await fetch(`/api/tts?sid=${encodeURIComponent(sid)}`, { method: "POST", headers: headers(), body: JSON.stringify({ text }) });
+      if (!response.ok) throw new Error("tts");
+      return response.blob();
+    } : null,
+    onStart() {
+      state.speaking = true;
+      if (state.stage !== "listening") setStage("speaking");
+      if (state.input === "voice") bargeIn.start();
+    },
+    onIdle() {
+      state.speaking = false;
+      bargeIn.stop();
+      if (state.stage === "speaking" && !state.busy) setStage("idle");
+    },
+  });
+}
+let speaker = makeSpeaker(false);
+
+// 用户一开口就打断朗读，马上开始听。
+const bargeIn = Voice.createBargeIn(meter, () => {
+  if (!speaker.speaking) return;
+  speaker.cancel();
+  logEvent("voice_barge_in");
+  if (state.busy) state.pendingListen = true;
+  else startListening();
+});
+
+function say(text) {
+  if (!state.tts || state.input !== "voice" || !text) return false;
+  return speaker.enqueue(text);
+}
 
 /* ------------------------------------------------------------------ progress + chat */
 function renderProgress(coverage) {
@@ -310,6 +389,7 @@ function renderChat(messages) {
   for (const message of messages) {
     const bubble = document.createElement("div");
     bubble.className = `bubble ${message.role === "user" ? "user" : "assistant"}`;
+    if (message.retracted) bubble.classList.add("is-retracted");
     if (message.role === "user" && message.via === "voice") {
       const via = document.createElement("span");
       via.className = "via";
@@ -353,20 +433,44 @@ function typeQuestion(text) {
   });
 }
 
-function speakQuestion(text, id) {
-  return new Promise((resolve) => {
-    if (!state.tts || !Voice.canSpeak || state.input !== "voice") return resolve(false);
-    state.spoken.add(id);
-    state.speaking = true;
-    setStage("speaking");
-    Voice.speak(text, {
-      onend() {
-        state.speaking = false;
-        if (state.stage === "speaking") setStage("idle");
-        resolve(true);
-      },
-    });
-  });
+async function speakQuestion(text, id) {
+  if (id) state.spoken.add(id);
+  if (!say(text)) return false;
+  await speaker.whenIdle();
+  return true;
+}
+
+// 流式回合：采访官的话一句一句地显示出来（复述用较浅的颜色，问句是主角）。
+function beginLiveQuestion() {
+  typingToken += 1;
+  questionEl.replaceChildren();
+}
+function appendSentence(text, kind) {
+  const span = document.createElement("span");
+  span.className = `q-part q-${/^[a-z]+$/.test(kind || "") ? kind : "text"}`;
+  span.textContent = text;
+  questionEl.append(span);
+}
+
+function renderRecaps(session) {
+  const list = $("#recaps");
+  if (!list) return;
+  list.replaceChildren();
+  const recaps = session.recaps || {};
+  const skipped = session.skipped || {};
+  for (const [id, label] of TOPICS) {
+    if (!session.coverage || !session.coverage[id]) continue;
+    if (!recaps[id] && !skipped[id]) continue;
+    const item = document.createElement("li");
+    const name = document.createElement("strong");
+    name.textContent = label;
+    const body = document.createElement("span");
+    body.textContent = skipped[id] ? "已跳过，之后可以补" : recaps[id];
+    if (skipped[id]) item.dataset.state = "skipped";
+    item.append(name, body);
+    list.append(item);
+  }
+  list.classList.toggle("hidden", !list.children.length);
 }
 
 /* ------------------------------------------------------------------ transcript */
@@ -587,6 +691,7 @@ function renderSession(next, opts) {
   renderProgress(next.coverage || {});
   state.session = next;
   renderChat(next.messages || []);
+  renderRecaps(next);
   renderProfile(next.profile);
   renderThemes(next.profile);
   renderChips(next.profile);
@@ -601,6 +706,8 @@ function renderSession(next, opts) {
   const latest = lastAssistant(next.messages);
   if (latest && latest.id !== state.typedId) {
     state.typedId = latest.id;
+    // quiet：这句话已经在流式过程中显示并朗读过了，不再重打一遍。
+    if (options.quiet) { state.spoken.add(latest.id); return Promise.resolve(latest); }
     return typeQuestion(latest.message.content).then(() => latest);
   }
   return Promise.resolve(null);
@@ -640,31 +747,170 @@ function withBusy(button, pendingLabel, fn) {
 }
 
 /* ------------------------------------------------------------------ actions */
-async function submitAnswer(text, via) {
+// 读取 /turns 的 Server-Sent Events。鉴权或参数错误会以普通 JSON 返回，这里统一抛出。
+async function streamTurn(payload, handlers) {
+  const response = await fetch(`/api/sessions/${encodeURIComponent(sid)}/turns`, { method: "POST", headers: headers(), body: JSON.stringify(payload) });
+  const type = response.headers.get("content-type") || "";
+  if (!/event-stream/.test(type)) {
+    const data = await response.json().catch(() => ({}));
+    throw Object.assign(new Error(data.error || "没有完成，请再试一次。"), { expose: true });
+  }
+  let done = null;
+  let failure = null;
+  const dispatch = (block) => {
+    const event = (/^event: (.+)$/m.exec(block) || [])[1];
+    const raw = (/^data: (.+)$/m.exec(block) || [])[1];
+    if (!event || !raw) return;
+    let data;
+    try { data = JSON.parse(raw); } catch (error) { return; }
+    if (event === "done") done = data;
+    else if (event === "error") failure = data.error || "没有完成，请再试一次。";
+    else if (handlers[event]) handlers[event](data);
+  };
+  if (response.body && response.body.getReader) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let pending = "";
+    for (;;) {
+      const { value, done: finished } = await reader.read();
+      if (finished) break;
+      pending += decoder.decode(value, { stream: true });
+      let index;
+      while ((index = pending.indexOf("\n\n")) >= 0) {
+        dispatch(pending.slice(0, index));
+        pending = pending.slice(index + 2);
+      }
+    }
+    if (pending.trim()) dispatch(pending);
+  } else {
+    (await response.text()).split("\n\n").forEach(dispatch);
+  }
+  if (failure) throw Object.assign(new Error(failure), { expose: true });
+  if (!done) throw new Error("stream-incomplete");
+  return done;
+}
+
+function lockTurn(locked) {
+  state.busy = locked;
+  $("#send").disabled = locked;
+  document.querySelectorAll(".talk-actions button").forEach((button) => { button.disabled = locked; });
+  renderThemes(state.session && state.session.profile);
+  renderChips(state.session && state.session.profile);
+}
+
+// 一轮对话：语音和打字都走这里。口令、修改、回答由服务端判断。
+async function runTurn(text, via) {
   const value = String(text || "").trim();
-  if (!value) return;
-  await withBusy($("#send"), "发送中", async () => {
-    setStage("thinking");
-    const data = await api(`/api/sessions/${encodeURIComponent(sid)}/messages`, {
-      method: "POST",
-      headers: headers(),
-      body: JSON.stringify({ text: value, via: via === "voice" ? "voice" : "text" }),
+  if (!value || state.busy) return;
+  if (!sid || !key) {
+    showBanner("还没有创作会话。请从首页「开始制作」。", "warn");
+    return;
+  }
+  const channel = via === "voice" ? "voice" : "text";
+  bargeIn.stop();
+  speaker.cancel();
+  showNotice("");
+  setTranscript(value, "");
+  lockTurn(true);
+  setStage("thinking");
+  let action = null;
+  let started = false;
+  let reached = false;
+  let data = null;
+  let failed = "";
+  try {
+    data = await streamTurn({ text: value, via: channel, section: state.picked ? state.picked.section : "" }, {
+      intent() { reached = true; },
+      sentence(item) {
+        if (!started) { started = true; beginLiveQuestion(); setStage("speaking"); }
+        appendSentence(item.text, item.kind);
+        say(item.text);
+      },
+      action(item) { action = item; },
     });
-    $("#answer").value = "";
+  } catch (error) {
+    if (error.expose) failed = error.message;
+    else {
+      // 流式通道断了。服务端如果已经收到这句话，这一轮会照常记完：只需重新读取会话，不能重发（否则会记两遍）。
+      // 如果连请求都没到达，才退回普通接口再发一次。
+      try {
+        if (reached) {
+          data = await api(`/api/sessions/${encodeURIComponent(sid)}`, { headers: headers() });
+          action = null;
+        } else {
+          data = await api(`/api/sessions/${encodeURIComponent(sid)}/messages`, { method: "POST", headers: headers(), body: JSON.stringify({ text: value, via: channel }) });
+        }
+        started = false;
+      } catch (second) {
+        failed = second.message || "网络好像断了，请再试一次。";
+      }
+    }
+  }
+  lockTurn(false);
+  if (failed) {
+    // 把这句话放回输入框，重试时不用再说一遍。
+    $("#answer").value = value;
+    enterError(`${failed} 你刚才说的话已经放回输入框，可以直接再发一次。`);
+    return;
+  }
+  $("#answer").value = "";
+  if (action) {
     setTranscript("", "");
-    const latest = await renderSession(data);
-    await afterQuestion(latest);
-  })();
-  if (state.stage === "thinking") setStage("idle");
+    return runAction(action);
+  }
+  const latest = await renderSession(data, { quiet: started });
+  setTranscript("", "");
+  if (!started && latest) await speakQuestion(latest.message.content, latest.id);
+  await afterSpoken();
+}
+
+function submitAnswer(text, via) { return runTurn(text, via); }
+
+async function runAction(action) {
+  if (action.action === "generate") return runGenerate();
+  if (action.action === "publish") return runPublish();
+  if (action.action === "stop") {
+    stopLoop();
+    setStage("idle", "对话已暂停，点麦克风继续");
+    return undefined;
+  }
+  if (action.action === "edit") {
+    const spoken = action.instruction.replace(/^只修改「.+?」这一版块，其他版块保持原样：/, "");
+    $("#instruction").value = spoken;
+    const picked = state.picked;
+    await applyInstruction(action.instruction, null, picked ? `「${picked.label}」${spoken}` : spoken);
+    if (picked) { logEvent("block_pick_edit"); clearPick(); }
+  }
+  return undefined;
+}
+
+// 等采访官说完，再决定是否自动开始听。
+async function afterSpoken() {
+  await speaker.whenIdle();
+  if (state.stage === "speaking" || state.stage === "thinking") setStage("idle");
+  const wantListen = state.pendingListen || (state.loop && state.input === "voice");
+  state.pendingListen = false;
+  if (wantListen && !state.busy && voiceReady()) window.setTimeout(() => startListening(), 250);
 }
 
 async function afterQuestion(latest) {
-  if (latest && state.input === "voice") await speakQuestion(latest.message.content, latest.id);
-  if (state.stage !== "listening") setStage("idle");
-  if (state.loop && state.input === "voice" && !state.busy) {
-    // 话题聊完后也继续听一句，方便直接说「生成网站」
-    window.setTimeout(() => startListening(), 300);
-  }
+  if (latest && state.input === "voice" && !state.spoken.has(latest.id)) await speakQuestion(latest.message.content, latest.id);
+  await afterSpoken();
+}
+
+// 「跳过 / 返回 / 我说错了 / 再说一遍」按钮：和说出口令是同一套逻辑。
+async function runCommand(name, button) {
+  await withBusy(button, "", async () => {
+    bargeIn.stop();
+    speaker.cancel();
+    setStage("thinking");
+    const data = await api(`/api/sessions/${encodeURIComponent(sid)}/commands`, { method: "POST", headers: headers(), body: JSON.stringify({ command: name }) });
+    beginLiveQuestion();
+    setStage("speaking");
+    (data.sentences || []).forEach((item) => { appendSentence(item.text, item.kind); say(item.text); });
+    await renderSession(data, { quiet: true });
+  })();
+  await afterSpoken();
 }
 
 const runGenerate = withBusy($("#generate"), "生成中", async () => {
@@ -678,18 +924,17 @@ const runGenerate = withBusy($("#generate"), "生成中", async () => {
     addBuild(["hero", "services", "highlights", "story", "contacts"]);
     await renderSession(data, { changed: ["hero", "services"] });
     setStage("done", "网站已生成，可以换风格、修改或发布");
-    typeQuestion("网站做好了。说「换成光影风格」改风格，说一句话修改内容，或者说「发布」。");
-    if (state.tts && Voice.canSpeak && state.input === "voice") {
-      Voice.speak(`网站生成好了。${data.profile && data.profile.name ? `${data.profile.name}，` : ""}你可以说换成光影风格，或者说发布。`);
-    }
+    typeQuestion("网站做好了。点预览里的任意一块，说一句话就能改；也可以说「换成光影风格」或「发布」。");
+    say(`网站生成好了。${data.profile && data.profile.name ? `${data.profile.name}，` : ""}你可以点一下预览里的任意一块来修改，或者说发布。`);
   } finally {
     previewFrame.classList.remove("is-loading");
   }
 });
 
-async function applyInstruction(instruction, button) {
+async function applyInstruction(instruction, button, shown) {
   const text = String(instruction || "").trim();
   if (!text) return;
+  const label = shown || text;
   await withBusy(button || $("#edit"), "修改中", async () => {
     const data = await api(`/api/sessions/${encodeURIComponent(sid)}/edits`, {
       method: "POST",
@@ -699,7 +944,7 @@ async function applyInstruction(instruction, button) {
     const changed = (data.changed || []).map((name) => (name === "theme" || name === "accent" || name === "name" ? "hero" : name));
     await renderSession(data, { changed: [...new Set(changed)] });
     addBuild(changed.filter((name) => SECTION_LABEL[name]));
-    setStage("done", `已修改：${text}`);
+    setStage("done", `已修改：${label}`);
   })();
 }
 
@@ -714,41 +959,70 @@ const runPublish = withBusy($("#publish"), "发布中", async () => {
   publishResult.scrollIntoView({ block: "center", behavior: reduceMotion ? "auto" : "smooth" });
   setStage("done", "已发布");
   typeQuestion("发布好了！链接和二维码在下面，之后说的修改会自动同步。");
-  if (state.tts && Voice.canSpeak && state.input === "voice") Voice.speak("发布好了，链接和二维码在下面。");
+  say("发布好了，链接和二维码在下面。");
 });
 
-/* ------------------------------------------------------------------ voice commands */
-function normalizeCommand(text) {
-  return String(text || "").replace(/[\s，。！？、,.!?]/g, "");
+/* ------------------------------------------------------------------ utterance */
+// 一句话进来（语音或打字）：交给服务端判断是口令、修改还是回答。
+function handleUtterance(text, via) {
+  return runTurn(text, via);
 }
 
-function matchCommand(text) {
-  const t = normalizeCommand(text);
-  const profile = state.session && state.session.profile;
-  if (t.length > 16) return null;
-  if (/^(请|帮我)?(开始)?生成(一下)?(网站|网页|我的网站)?(吧)?$/.test(t)) return { kind: "generate" };
-  if (profile && /^(请|帮我)?(发布|上线)(网站|一下)?(吧)?$/.test(t)) return { kind: "publish" };
-  const theme = t.match(/(?:换成|改成|切换到|切到|用)(温暖|简约|墨色|光影|杂志)/) || (profile ? t.match(/^(温暖|简约|墨色|光影|杂志)(风格|主题|风)?$/) : null);
-  if (profile && theme) return { kind: "edit", instruction: `风格换成${theme[1]}` };
-  return null;
+/* ------------------------------------------------------------------ pick a block in the preview */
+const PICK_STYLE = "[data-section]{cursor:pointer}[data-section]:hover{outline:2px dashed rgba(169,83,47,.55);outline-offset:4px}[data-section].qd-picked{outline:2px solid #A9532F;outline-offset:4px}";
+
+function hookPreview(frame) {
+  let doc;
+  try { doc = frame.contentDocument; } catch (error) { return; }
+  if (!doc || !doc.body || doc.body.dataset.qdHooked) return;
+  doc.body.dataset.qdHooked = "1";
+  const style = doc.createElement("style");
+  style.textContent = PICK_STYLE;
+  doc.head.append(style);
+  doc.addEventListener("click", (event) => {
+    // 预览里的链接、按钮、输入框照常可用，只有点在版块空白处才算「选中」。
+    if (event.target.closest("a,button,input,textarea,select,label,summary,[role=button]")) return;
+    const section = event.target.closest("[data-section]");
+    if (!section) return;
+    event.preventDefault();
+    pickSection(section.dataset.section);
+  }, true);
+  if (state.picked) markPicked();
 }
 
-async function handleUtterance(text, via) {
-  const value = String(text || "").trim();
-  if (!value) return;
-  setTranscript(value, "");
-  const command = matchCommand(value);
-  const profile = state.session && state.session.profile;
-  if (command && command.kind === "generate") return runGenerate();
-  if (command && command.kind === "publish") return runPublish();
-  if (command && command.kind === "edit") return applyInstruction(command.instruction);
-  const coverage = (state.session && state.session.coverage) || {};
-  if (profile && TOPICS.every(([id]) => coverage[id])) {
-    // 已生成网站：自由说的话按「一句话修改」处理
-    $("#instruction").value = value;
-    return applyInstruction(value);
+function markPicked() {
+  for (const frame of frames) {
+    let doc;
+    try { doc = frame.contentDocument; } catch (error) { continue; }
+    if (!doc) continue;
+    doc.querySelectorAll(".qd-picked").forEach((node) => node.classList.remove("qd-picked"));
+    if (state.picked) doc.querySelectorAll(`[data-section="${state.picked.section}"]`).forEach((node) => node.classList.add("qd-picked"));
   }
-  return submitAnswer(value, via);
+}
+
+function pickSection(name) {
+  const label = SECTION_LABEL[name];
+  if (!label || name === "theme") return;
+  if (!state.session || !state.session.profile) {
+    showNotice("生成网站之后，就可以点预览里的任意一块，用一句话修改它。");
+    return;
+  }
+  if (state.busy) return;
+  state.picked = { section: name, label };
+  markPicked();
+  $("#pick-text").textContent = `正在修改「${label}」：说一句话，或者在下面打字`;
+  $("#pick-chip").classList.remove("hidden");
+  speaker.cancel();
+  beginLiveQuestion();
+  appendSentence(`你选中了「${label}」。想怎么改？我只动这一块。`, "question");
+  if (state.input === "voice" && voiceReady()) startListening();
+  else $("#answer").focus();
+}
+
+function clearPick() {
+  state.picked = null;
+  markPicked();
+  $("#pick-chip").classList.add("hidden");
 }
 
 /* ------------------------------------------------------------------ recognition */
@@ -757,48 +1031,84 @@ function fatal(code) {
   return ["not-allowed", "service-not-allowed", "audio-capture", "network", "language-not-supported", "start"].includes(code);
 }
 
-if (Voice.supported) {
-  recognizer = Voice.createRecognizer({
+const recognizerHandlers = {
+  onInterim(finalText, interim) {
+    setTranscript(finalText, interim);
+    orb.bump(0.5);
+  },
+  onLevel() { orb.bump(0.3); },
+  onFinal(text) {
+    state.listening = false;
+    handleUtterance(text, "voice");
+  },
+  onEmpty() {
+    state.listening = false;
+  },
+  onState(s) {
+    if (s === "listening") {
+      state.listening = true;
+      setStage("listening");
+    } else if (s === "recognizing") {
+      state.listening = false;
+      setStage("thinking", "正在识别你说的话…");
+    } else {
+      state.listening = false;
+      if (state.stage === "listening" || (state.stage === "thinking" && !state.busy)) setStage("idle");
+      // 连续模式下没听到声音，安静地重新开始听
+      window.setTimeout(() => {
+        if (state.loop && !state.busy && !state.speaking && !state.listening && state.stage === "idle") startListening();
+      }, 600);
+    }
+  },
+  onError(code, message) {
+    if (!fatal(code) && code !== "server") {
+      if (message && code !== "no-speech") showNotice(message);
+      return;
+    }
+    stopLoop();
+    // 降级：浏览器识别不可用 → 服务端识别（已配置时）→ 打字。已记录的内容都还在。
+    const serviceDown = ["network", "service-not-allowed", "language-not-supported"].includes(code);
+    if (state.asr === "browser" && serviceDown && useServerAsr()) {
+      setStage("idle");
+      showNotice("浏览器的语音识别连不上，已经换成服务端识别。再点一下麦克风就能继续说。");
+      return;
+    }
+    logEvent("voice_fallback_to_text");
+    enterError(`${message} 已经为你切到打字，之前聊的内容都还在。`, "语音暂时用不了");
+    setInput("text", true);
+  },
+};
+
+function useServerAsr() {
+  if (!state.voiceConfig.asr.server || !Voice.canRecord) return false;
+  recognizer = Voice.createServerRecognizer(Object.assign({
+    meter,
+    silenceMs: 1400,
     autoCommit: true,
-    silenceMs: 1500,
-    onInterim(finalText, interim) {
-      setTranscript(finalText, interim);
-      orb.bump(0.5);
+    async transcribe(blob) {
+      const response = await fetch(`/api/asr?sid=${encodeURIComponent(sid)}`, { method: "POST", headers: { "X-Edit-Token": key, "Content-Type": blob.type || "audio/webm" }, body: blob });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "语音识别服务暂时不可用。");
+      return data.text || "";
     },
-    onFinal(text) {
-      state.listening = false;
-      handleUtterance(text, "voice");
-    },
-    onEmpty() {
-      state.listening = false;
-    },
-    onState(s) {
-      if (s === "listening") {
-        state.listening = true;
-        setStage("listening");
-      } else {
-        state.listening = false;
-        if (state.stage === "listening") setStage("idle");
-        // 连续模式下没听到声音，安静地重新开始听
-        window.setTimeout(() => {
-          if (state.loop && !state.busy && !state.speaking && !state.listening && state.stage === "idle") startListening();
-        }, 600);
-      }
-    },
-    onError(code, message) {
-      if (fatal(code)) {
-        stopLoop();
-        showNotice(message);
-      } else if (message && code !== "no-speech") {
-        showNotice(message);
-      }
-    },
-  });
+  }, recognizerHandlers));
+  state.asr = "server";
+  return true;
+}
+
+function setupRecognizer() {
+  if (Voice.supported) {
+    recognizer = Voice.createRecognizer(Object.assign({ autoCommit: true, silenceMs: 1400 }, recognizerHandlers));
+    state.asr = "browser";
+    return true;
+  }
+  return useServerAsr();
 }
 
 async function startListening() {
   if (!recognizer || state.busy || state.listening) return;
-  Voice.cancelSpeak();
+  bargeIn.stop();
+  speaker.cancel();
   state.speaking = false;
   showNotice("");
   setTranscript("", "");
@@ -820,7 +1130,10 @@ function stopLoop() {
 async function beginTurn() {
   // 第一次点麦克风：先把还没读过的问题读出来，再开始听
   const latest = state.session && lastAssistant(state.session.messages);
-  if (latest && state.tts && Voice.canSpeak && !state.spoken.has(latest.id)) {
+  if (speaker.speaking) {
+    // 采访官还在说：这一下是打断。
+    speaker.cancel();
+  } else if (latest && state.tts && !state.spoken.has(latest.id)) {
     await speakQuestion(latest.message.content, latest.id);
   }
   await startListening();
@@ -828,7 +1141,7 @@ async function beginTurn() {
 
 /* mic: 点按 = 开始 / 结束；按住 = 按住说话；连续模式 = 开关对话循环 */
 micButton.addEventListener("pointerdown", (event) => {
-  if (!Voice.supported || event.button > 0) return;
+  if (!voiceReady() || event.button > 0) return;
   state.holdStart = performance.now();
   state.wasListening = state.listening;
   micButton.classList.add("is-holding");
@@ -847,7 +1160,7 @@ micButton.addEventListener("pointerup", endPress);
 micButton.addEventListener("pointercancel", endPress);
 micButton.addEventListener("pointerleave", () => { if (state.holdStart && performance.now() - state.holdStart > 450) endPress(); });
 micButton.addEventListener("click", (event) => {
-  if (!Voice.supported) {
+  if (!voiceReady()) {
     showNotice(unsupportedText());
     $("#answer").focus();
     return;
@@ -855,7 +1168,7 @@ micButton.addEventListener("click", (event) => {
   if (state.talk === "continuous") {
     if (state.loop) {
       stopLoop();
-      Voice.cancelSpeak();
+      speaker.cancel();
       setStage("idle", "对话已暂停");
     } else {
       state.loop = true;
@@ -871,7 +1184,7 @@ micButton.addEventListener("click", (event) => {
 });
 
 document.addEventListener("keydown", (event) => {
-  if (event.code !== "Space" || event.repeat || !Voice.supported || state.input !== "voice") return;
+  if (event.code !== "Space" || event.repeat || !voiceReady() || state.input !== "voice") return;
   const tag = (event.target && event.target.tagName) || "";
   if (/INPUT|TEXTAREA|SELECT|BUTTON|A|SUMMARY/.test(tag)) return;
   event.preventDefault();
@@ -887,14 +1200,16 @@ document.addEventListener("keyup", (event) => {
 });
 
 /* ------------------------------------------------------------------ toggles */
-function setInput(mode) {
+function setInput(mode, keepFocus) {
   state.input = mode;
   studio.dataset.input = mode;
   document.querySelectorAll("[data-input]").forEach((btn) => btn.setAttribute("aria-checked", btn.dataset.input === mode ? "true" : "false"));
   if (mode === "text") {
     stopLoop();
-    Voice.cancelSpeak();
-    $("#answer").focus();
+    bargeIn.stop();
+    speaker.cancel();
+    meter.close();
+    if (!keepFocus) $("#answer").focus();
   }
   localStorage.setItem("qd-input", mode);
 }
@@ -914,7 +1229,7 @@ function setTts(on) {
   ttsToggle.setAttribute("aria-pressed", on ? "true" : "false");
   ttsToggle.title = on ? "朗读已开启（点击关闭）" : "朗读已关闭（点击开启）";
   localStorage.setItem("qd-tts", on ? "1" : "0");
-  if (!on) Voice.cancelSpeak();
+  if (!on) speaker.cancel();
 }
 
 document.querySelectorAll("[data-input]").forEach((btn) => btn.addEventListener("click", () => setInput(btn.dataset.input)));
@@ -926,7 +1241,7 @@ document.querySelectorAll("[data-device]").forEach((btn) => btn.addEventListener
 }));
 
 function unsupportedText() {
-  return "当前浏览器不支持语音识别（例如 Firefox）。请用 Chrome、Edge 或 Safari 打开，或者直接在下面打字回答——流程完全一样。";
+  return "当前浏览器不支持语音识别（例如 Firefox）。请用 Chrome、Edge 或 Safari 打开，或者直接在下面打字回答——流程完全一样，「跳过」「返回」「我说错了」这些口令打字也有效。";
 }
 
 /* ------------------------------------------------------------------ forms */
@@ -990,19 +1305,25 @@ $("#import-submit").addEventListener("click", withBusy($("#import-submit"), "导
   });
   button.addEventListener("click", () => {
     if (button.classList.contains("is-on")) rec.stop(true);
-    else { Voice.cancelSpeak(); rec.start(); }
+    else { speaker.cancel(); rec.start(); }
   });
 })();
 
 /* ------------------------------------------------------------------ boot */
 async function boot() {
   orb.start();
-  setTts(state.tts && Voice.canSpeak);
-  if (!Voice.canSpeak) {
+  try {
+    const voiceConfig = await fetch("/api/voice/config").then((response) => response.json());
+    if (voiceConfig && voiceConfig.asr && voiceConfig.tts) state.voiceConfig = voiceConfig;
+  } catch (error) { /* 读不到就按「只有浏览器能力」处理 */ }
+  const canSpeak = Voice.canSpeak || state.voiceConfig.tts.server;
+  if (state.voiceConfig.tts.server) speaker = makeSpeaker(true);
+  setTts(state.tts && canSpeak);
+  if (!canSpeak) {
     ttsToggle.disabled = true;
     ttsToggle.title = "这个浏览器不支持朗读";
   }
-  if (!Voice.supported) {
+  if (!setupRecognizer()) {
     document.body.classList.add("no-voice");
     $("#mode-voice").disabled = true;
     showNotice(unsupportedText());
@@ -1028,6 +1349,16 @@ async function boot() {
   if (current.imports && current.imports[0]) $("#import-text").value = current.imports[0].text;
 }
 
+frames.forEach((frame) => frame.addEventListener("load", () => hookPreview(frame)));
+$("#pick-clear").addEventListener("click", () => { clearPick(); setStage("idle"); });
+document.querySelectorAll("[data-command]").forEach((button) => button.addEventListener("click", () => runCommand(button.dataset.command, button)));
+window.addEventListener("pagehide", () => { bargeIn.stop(); speaker.cancel(); meter.close(); });
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape") return;
+  if (speaker.speaking) speaker.cancel();
+  else if (state.picked) clearPick();
+});
+
 /* 自动化测试用：模拟一段语音识别结果（与真实识别走同一条路径） */
 window.QDStudio = {
   simulateTranscript(text, opts) {
@@ -1041,7 +1372,19 @@ window.QDStudio = {
     return handleUtterance(text, "voice");
   },
   setStage,
-  get state() { return { stage: state.stage, input: state.input, talk: state.talk, tts: state.tts, supported: Voice.supported, filled: state.filled ? [...state.filled] : [] }; },
+  pickSection,
+  clearPick,
+  runCommand,
+  simulateRecognitionError(code) { recognizerHandlers.onError(code, (Voice.errorText && Voice.errorText(code)) || "语音识别出了点问题。"); },
+  get state() {
+    return {
+      stage: state.stage, input: state.input, talk: state.talk, tts: state.tts, busy: state.busy,
+      supported: Voice.supported, asr: state.asr, speaking: speaker.speaking,
+      picked: state.picked ? state.picked.section : "", micOpen: meter.active,
+      recaps: (state.session && state.session.recaps) || {},
+      filled: state.filled ? [...state.filled] : [],
+    };
+  },
 };
 
 boot().catch((error) => showBanner(error.message, "warn"));

@@ -233,3 +233,29 @@
 @media (prefers-reduced-motion: reduce) {
   .topics li, .live-badge .dot, .voice-status .dot, .question .caret { animation: none !important; }
 }
+
+/* ---- 阶段 3：对话控制、要点摘要、区块点选、出错状态 ---- */
+.stage[data-state="error"] .voice-status { color: #B33C35; font-weight: 600; }
+.stage[data-state="error"] .voice-status .dot { background: #B33C35; border-radius: 2px; animation: none; }
+.stage[data-state="error"] .mic { box-shadow: 0 0 0 3px rgba(179, 60, 53, 0.35); }
+.question .q-part { display: inline; animation: q-in 320ms ease-out both; }
+.question .q-recap, .question .q-ack, .question .q-info, .question .q-repeat { color: #5F7068; font-size: 0.72em; display: block; margin-bottom: 6px; }
+.question .q-repeat { display: inline; font-size: 1em; color: inherit; }
+@keyframes q-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.talk-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 14px 0 4px; }
+.talk-btn { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; padding: 0 14px; border-radius: 8px; border: 1px solid #7A8E84; background: transparent; color: #20352F; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; transition: background 160ms, border-color 160ms; }
+.talk-btn .icon { width: 20px; height: 20px; }
+.talk-btn:hover:not(:disabled) { background: #F8EEE7; border-color: #A9532F; color: #853E20; }
+.talk-btn:focus-visible, .pick-clear:focus-visible { outline: 2px solid #924526; outline-offset: 2px; }
+.talk-btn:disabled { background: #DDE5E0; color: #556A60; border-color: #DDE5E0; cursor: not-allowed; }
+.pick-chip { display: flex; align-items: center; gap: 8px; margin: 12px auto 0; padding: 6px 6px 6px 12px; max-width: 100%; width: fit-content; border-radius: 8px; background: #F8EEE7; color: #853E20; border: 1px solid #A9532F; font-size: 14px; font-weight: 600; }
+.pick-chip .icon { width: 20px; height: 20px; flex: none; }
+.pick-clear { display: grid; place-items: center; min-width: 44px; min-height: 44px; margin: -6px -6px -6px 0; border: 0; background: transparent; color: inherit; cursor: pointer; border-radius: 8px; }
+.recaps { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 6px; text-align: left; }
+.recaps li { display: grid; grid-template-columns: 6.5em 1fr; gap: 8px; padding: 8px 12px; border-radius: 8px; background: #FFFFFF; border: 1px solid #D6DFDA; font-size: 14px; line-height: 1.6; }
+.recaps li strong { color: #237A57; font-weight: 600; }
+.recaps li span { color: #20352F; overflow-wrap: anywhere; }
+.recaps li[data-state="skipped"] strong, .recaps li[data-state="skipped"] span { color: #8A570C; }
+.bubble.is-retracted { text-decoration: line-through; opacity: 0.6; }
+.studio[data-input="text"] .talk-actions { margin-top: 8px; }
+@media (prefers-reduced-motion: reduce) { .question .q-part { animation: none; } }
