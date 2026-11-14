@@ -8,6 +8,7 @@ const { createService } = require("./service");
 const { seedExampleIfEmpty } = require("./seed");
 const { renderSite, renderProfileJson, renderLlms, renderSitemap, absoluteUrl } = require("./render");
 const { resolveInside, isSafeSlug } = require("./security");
+const { providersFromEnv } = require("./voice/providers");
 
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
 const sessionQueues = new Map();
@@ -57,6 +58,10 @@ function createServer(options = {}) {
     publicBaseUrl: options.publicBaseUrl || process.env.PUBLIC_BASE_URL || "",
     fetchImpl: options.fetchImpl,
   };
+  // 服务端语音接口默认不接；配了环境变量或传入实现才启用（见 src/voice/providers.js）。
+  const fromEnv = providersFromEnv(options.env || process.env, options.fetchImpl);
+  config.asrProvider = options.asrProvider !== undefined ? options.asrProvider : fromEnv.asr;
+  config.ttsProvider = options.ttsProvider !== undefined ? options.ttsProvider : fromEnv.tts;
   const store = createStore(config.dataDir);
   seedExampleIfEmpty(store);
   const service = createService(store, config);
@@ -91,6 +96,15 @@ async function handle(req, res, ctx) {
       modelNotice: ctx.config.modelNotice,
     });
   }
+  if (method === "GET" && pathname === "/api/voice/config") {
+    return sendJson(res, 200, {
+      asr: { server: !!ctx.config.asrProvider, browser: true },
+      tts: { server: !!ctx.config.ttsProvider, browser: true },
+      followupMax: 2,
+      commands: ["跳过", "返回", "我说错了", "再说一遍", "生成网站", "发布"],
+    });
+  }
+  if (method === "POST" && (pathname === "/api/asr" || pathname === "/api/tts")) return handleVoice(req, res, ctx, url, pathname);
   if (method === "GET" && pathname === "/api/import/prompt") {
     return sendJson(res, 200, { prompt: ctx.service.importPrompt });
   }
@@ -126,6 +140,8 @@ async function handle(req, res, ctx) {
     if (method === "GET" && parts[3] === "draft") return sendJson(res, 200, ctx.service.draft(id, token));
     const body = method === "POST" ? await readBody(req) : {};
     const auth = req.headers["x-edit-token"] || body.token || "";
+    if (method === "POST" && parts[3] === "turns") return streamTurn(req, res, ctx, id, auth, body);
+    if (method === "POST" && parts[3] === "commands") return sendJson(res, 200, await gate(id, () => ctx.service.command(id, auth, String(body.command || ""))));
     if (method === "POST" && parts[3] === "messages") return sendJson(res, 200, await gate(id, () => ctx.service.sendMessage(id, auth, body.text, body.via)));
     if (method === "POST" && parts[3] === "imports") return sendJson(res, 200, await gate(id, () => ctx.service.addImport(id, auth, body.text, body.kind)));
     if (method === "POST" && parts[3] === "profile") return sendJson(res, 200, await gate(id, () => ctx.service.generateProfile(id, auth)));
@@ -221,6 +237,89 @@ function sendPreview(req, res, ctx, id, token, opts = {}) {
     example: !!session.demo,
   });
   sendText(res, 200, html, "text/html; charset=utf-8");
+}
+
+// 流式回合：Server-Sent Events（用 POST，前端以 fetch 读流）。
+// 鉴权和参数错误在开流之前就以普通 JSON 返回，方便前端统一处理。
+async function streamTurn(req, res, ctx, id, token, body) {
+  ctx.service.requireSession(id, token);
+  const aborter = new AbortController();
+  let open = false;
+  let closed = false;
+  res.on("close", () => { closed = true; aborter.abort(); });
+  const emit = (event, data) => {
+    if (closed) return;
+    if (!open) {
+      open = true;
+      res.writeHead(200, {
+        "Content-Type": "text/event-stream; charset=utf-8",
+        "Cache-Control": "no-store, no-transform",
+        "X-Accel-Buffering": "no",
+        "X-Content-Type-Options": "nosniff",
+        Connection: "keep-alive",
+      });
+    }
+    res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
+  };
+  try {
+    // 即使访客中途断开，这一轮也照常记完，下次打开时进度是完整的。
+    const session = await gate(id, () => ctx.service.turn(id, token, { text: body.text, via: body.via, section: body.section }, emit, aborter.signal));
+    emit("done", session);
+  } catch (error) {
+    if (!open) throw error;
+    emit("error", { error: error.expose ? error.message : "刚才没完成，请再试一次。" });
+  }
+  if (!closed) res.end();
+}
+
+async function handleVoice(req, res, ctx, url, pathname) {
+  // 语音接口会消耗第三方额度，只对持有会话密钥的人开放。
+  ctx.service.requireSession(url.searchParams.get("sid") || "", req.headers["x-edit-token"] || "");
+  if (pathname === "/api/asr") {
+    const provider = ctx.config.asrProvider;
+    if (!provider) return sendJson(res, 501, { error: "服务端语音识别还没有配置，请使用浏览器识别或打字。", code: "asr_not_configured" });
+    const audio = await readRaw(req, 3 * 1024 * 1024);
+    if (audio.length < 200) return sendJson(res, 400, { error: "没有收到声音，请再说一次。", code: "empty_audio" });
+    try {
+      const result = await provider.transcribe(audio, { mime: String(req.headers["content-type"] || "audio/webm").split(";")[0], lang: "zh" });
+      ctx.store.addEvent({ type: "asr_request", bytes: audio.length });
+      return sendJson(res, 200, { text: String(result?.text || "").trim().slice(0, 4000) });
+    } catch {
+      return sendJson(res, 502, { error: "语音识别服务暂时不可用，请再试一次或改用打字。", code: "asr_failed" });
+    }
+  }
+  const provider = ctx.config.ttsProvider;
+  if (!provider) return sendJson(res, 501, { error: "服务端朗读还没有配置，将使用浏览器朗读。", code: "tts_not_configured" });
+  const body = await readBody(req);
+  const text = String(body.text || "").trim();
+  if (!text) return sendJson(res, 400, { error: "没有要朗读的内容。" });
+  if (text.length > 300) return sendJson(res, 400, { error: "单次朗读请收在 300 字以内。" });
+  try {
+    const result = await provider.synthesize(text, {});
+    ctx.store.addEvent({ type: "tts_request", length: text.length });
+    res.writeHead(200, { "Content-Type": result.mime || "audio/mpeg", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff", "Content-Length": result.audio.length });
+    return res.end(result.audio);
+  } catch {
+    return sendJson(res, 502, { error: "朗读服务暂时不可用，将使用浏览器朗读。", code: "tts_failed" });
+  }
+}
+
+function readRaw(req, limit) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    let size = 0;
+    req.on("data", (chunk) => {
+      size += chunk.length;
+      if (size > limit) {
+        reject(Object.assign(new Error("这段录音太长了，请说短一点。"), { status: 413, expose: true }));
+        req.destroy();
+        return;
+      }
+      chunks.push(chunk);
+    });
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", () => reject(Object.assign(new Error("请求中断了。"), { status: 400, expose: true })));
+  });
 }
 
 function serveStatic(res, pathname) {

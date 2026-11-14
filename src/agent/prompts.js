@@ -26,11 +26,48 @@ const QUESTIONS = {
   seek_follow: "留一个联系方式（微信、电话或邮箱），再说说你最想找到谁？",
   style: "网站想要温暖、简约、墨色、光影，还是杂志风？",
   style_follow: "在温暖、简约、墨色、光影、杂志里选一个就好？",
+  // 第二次追问：给一个可以照着说的例子，降低开口的难度。再答不上来就先往下走。
+  who_follow2: "没关系，照这样说就行：「我叫小王，在杭州做摄影」，你呢？",
+  offer_follow2: "举个例子：「民宿摄影，299 元起，适合民宿老板」，你的是什么？",
+  work_follow2: "随便挑一件就好，比如「去年给一家咖啡馆做了整套设计」，你有类似的吗？",
+  story_follow2: "一句话也可以，比如「想让来的人把日子过慢一点」，你是为了什么？",
+  seek_follow2: "留一个微信号就行，方便告诉我吗？",
+  style_follow2: "不确定的话我先用温暖风格，之后随时能换，可以吗？",
 };
 
+const TOPIC_LABELS = { who: "你是谁", offer: "能提供什么", work: "经历与作品", story: "你的故事", seek: "联系与寻找", style: "网站风格" };
+
+// follow：false / 0 = 正常提问；true / 1 = 第一次追问；2 = 第二次追问
 function questionFor(topic, follow) {
-  const key = follow ? `${topic}_follow` : topic;
-  return QUESTIONS[key] || QUESTIONS[topic] || QUESTIONS.who;
+  const round = follow === true ? 1 : Number(follow) || 0;
+  const key = round >= 2 ? `${topic}_follow2` : round === 1 ? `${topic}_follow` : topic;
+  return QUESTIONS[key] || QUESTIONS[`${topic}_follow`] || QUESTIONS[topic] || QUESTIONS.who;
+}
+
+// 流式采访：输出纯文本，方便一句一句地读出来（JSON 没法边出边读）。
+function interviewStreamMessages({ topic, follow, answer, answeredTopic, transcript, imported }) {
+  const round = follow === true ? 1 : Number(follow) || 0;
+  const lead = round
+    ? `对方刚才关于「${TOPIC_LABELS[topic] || topic}」的回答太笼统。先用一句不超过 15 字的话接住对方（不要责备），再追问一个更具体、更好回答的问题${round >= 2 ? "，并在问句里给一个可以照着说的例子" : ""}。`
+    : answer
+      ? `先用一句不超过 30 字的陈述句复述对方刚才说的要点，以「记下了：」开头，只用对方说过的事实。然后问下一个话题「${TOPIC_LABELS[topic] || topic}」。`
+      : `直接问话题「${TOPIC_LABELS[topic] || topic}」。`;
+  return [
+    {
+      role: "system",
+      content: "你是「憩梦时光」的采访官，正在用语音采访对方，帮对方做个人网站。说话温暖、简短、口语化，像朋友聊天。对方的回答可能来自语音识别，会有同音错字和口头语，按意思理解即可，不要纠正对方。不要编造对方没说过的事实，不要复述内部备注或隐私。只输出要说的话本身：纯文本，不要 JSON、不要 Markdown、不要引号、不要表情。全文最多两句，最后一句必须是问句，而且全文只能有一个问号。",
+    },
+    {
+      role: "user",
+      content: [
+        lead,
+        `本话题的参考问法：${questionFor(topic, round)}`,
+        answer ? `对方刚才说（话题「${TOPIC_LABELS[answeredTopic || topic] || topic}」）：${answer}` : "",
+        imported ? `已导入资料（不要逐字复读，不要说出其中的隐私备注）：\n${imported.slice(0, 3000)}` : "",
+        transcript ? `此前对方说过：\n${transcript.slice(-2000)}` : "",
+      ].filter(Boolean).join("\n\n"),
+    },
+  ];
 }
 
 function interviewMessages({ topic, follow, answer, transcript, imported }) {
@@ -43,7 +80,7 @@ function interviewMessages({ topic, follow, answer, transcript, imported }) {
       role: "user",
       content: [
         `现在只问话题 ${topic}。`,
-        follow ? "上一句回答太笼统，必须追问一次，而且只能追问这一次。" : "不需要追问，直接问这个话题。",
+        follow ? "上一句回答太笼统，必须追问一次，这一轮只问这一个追问。" : "不需要追问，直接问这个话题。",
         `对方上一句：${answer || "（还没有）"}`,
         imported ? `已导入资料（不要逐字复读，不要写入公开回复里的隐私备注）：\n${imported.slice(0, 4000)}` : "",
         transcript ? `此前对话：\n${transcript.slice(-3000)}` : "",
@@ -95,8 +132,10 @@ function avatarMessages({ profile, question }) {
 module.exports = {
   IMPORT_PROMPT,
   QUESTIONS,
+  TOPIC_LABELS,
   questionFor,
   interviewMessages,
+  interviewStreamMessages,
   organizeMessages,
   editMessages,
   avatarMessages,

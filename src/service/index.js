@@ -1,7 +1,9 @@
 "use strict";
 
-const { runAgent } = require("../agent");
-const { IMPORT_PROMPT, questionFor } = require("../agent/prompts");
+const { runAgent, streamInterview, ruleRecap } = require("../agent");
+const { IMPORT_PROMPT, questionFor, TOPIC_LABELS } = require("../agent/prompts");
+const { classifyUtterance } = require("../voice/intent");
+const { splitSentences } = require("../voice/sentences");
 const { isJailbreak, evidenceScore, matchFaq, handoffAnswer, refusalAnswer } = require("../agent/offline");
 const {
   blankCoverage,
@@ -20,6 +22,21 @@ const { isSafeSlug, slugFromName, tokenEquals } = require("../security");
 const { EXAMPLE_SLUG, isExampleAlias } = require("../seed");
 const { qrSvg } = require("../qr");
 const { draftFromTurns } = require("../draft");
+
+// 同一话题最多追问两轮；两轮后仍然笼统就先往下走，不卡住用户。
+const FOLLOWUP_MAX = 2;
+
+const SECTION_LABELS = {
+  hero: "名字与身份",
+  about: "关于我",
+  services: "我能提供",
+  highlights: "经历与作品",
+  story: "我的故事",
+  seeking: "我在寻找",
+  contacts: "联系方式",
+};
+
+const COMPLETE_LINE = "六个话题都聊到了。说「生成网站」，我就按你说过的事实整理成网页。";
 
 function fail(status, message) {
   const error = new Error(message);
@@ -66,6 +83,9 @@ function createService(store, config) {
       fallback: !!session.lastFallback,
       sourceAgent: session.lastSource || "",
       draft: draftSummary(session),
+      recaps: session.recaps || {},
+      skipped: session.skipped || {},
+      followupMax: FOLLOWUP_MAX,
     };
   }
 
@@ -75,7 +95,7 @@ function createService(store, config) {
   }
 
   function draftOf(session) {
-    return draftFromTurns({ messages: session.messages, imported: importText(session) });
+    return draftFromTurns({ messages: liveMessages(session), imported: importText(session) });
   }
 
   function draft(id, token) {
@@ -150,13 +170,7 @@ function createService(store, config) {
     const channel = via === "voice" ? "voice" : "text";
     if (!answer) throw fail(400, "请先写下你的回答。");
     if (answer.length > 4000) throw fail(400, "这段回答太长了，请收在 4000 字以内。");
-    const topic = firstMissingTopic(session.coverage) || "style";
-    const vague = isVague(answer) && !(topic === "style" && inferTheme(answer));
-    const used = session.followups[topic] || 0;
-    const follow = vague && used < 1;
-    session.messages.push({ role: "user", content: answer, topic, via: channel, at: Date.now() });
-    if (follow) session.followups[topic] = used + 1;
-    else session.coverage[topic] = true;
+    const { topic, follow, round } = applyAnswer(session, answer, channel);
 
     let reply;
     let source = "offline";
@@ -167,15 +181,15 @@ function createService(store, config) {
       const nextTopic = follow ? topic : firstMissingTopic(session.coverage);
       const agent = await runAgent("interview", {
         topic: nextTopic,
-        follow,
+        follow: round,
         answer,
         transcript: transcriptOf(session),
         imported: importText(session),
       }, config);
       source = agent.source;
       fallback = !!agent.fallback;
-      reply = oneQuestion(agent.reply, questionFor(nextTopic, follow));
-      if (countQuestions(reply) !== 1) reply = questionFor(nextTopic, follow);
+      reply = oneQuestion(agent.reply, questionFor(nextTopic, round));
+      if (countQuestions(reply) !== 1) reply = questionFor(nextTopic, round);
     }
     session.messages.push({ role: "assistant", content: reply, topic, isFollowup: follow, at: Date.now() });
     session.lastSource = source;
@@ -186,6 +200,177 @@ function createService(store, config) {
     if (channel === "voice") store.addEvent({ type: "voice_turn", sessionId: id, topic, length: answer.length });
     if (fallback) store.addEvent({ type: "llm_fallback", agent: "interview", sessionId: id });
     return { ...ownerSession(session), isFollowup: follow, source, fallback, via: channel };
+  }
+
+  // 记下一句回答：判断要不要追问（最多 FOLLOWUP_MAX 轮），并更新话题覆盖与一句话摘要。
+  function applyAnswer(session, answer, channel) {
+    const topic = firstMissingTopic(session.coverage) || "style";
+    const vague = isVague(answer) && !(topic === "style" && inferTheme(answer));
+    const used = session.followups[topic] || 0;
+    const follow = vague && used < FOLLOWUP_MAX;
+    session.messages.push({ role: "user", content: answer, topic, via: channel, at: Date.now() });
+    session.recaps = session.recaps || {};
+    session.skipped = session.skipped || {};
+    if (follow) {
+      session.followups[topic] = used + 1;
+    } else {
+      session.coverage[topic] = true;
+      delete session.skipped[topic];
+      session.recaps[topic] = recapText(ruleRecap(topicAnswers(session, topic)));
+    }
+    return { topic, follow, round: follow ? used + 1 : 0 };
+  }
+
+  function topicAnswers(session, topic) {
+    return liveMessages(session).filter((message) => message.role === "user" && message.topic === topic).map((message) => message.content).join("，");
+  }
+
+  function emitLines(lines, emit) {
+    lines.forEach((item, index) => emit("sentence", { index, text: item.text, kind: item.kind }));
+  }
+
+  function finishTurn(session, id, extra) {
+    session.updatedAt = Date.now();
+    store.saveSession(session);
+    return { ...ownerSession(session), ...extra };
+  }
+
+  /**
+   * 流式的一轮对话（语音工作室用）。通过 emit(event, data) 依次推送：
+   *   intent   这句话被理解成什么（回答 / 口令 / 修改）
+   *   meta     本轮话题、是否追问、最新进度
+   *   sentence 采访官要说的话，一句一条，可以边收边读
+   *   action   需要前端接着做的动作（生成 / 发布 / 修改 / 暂停）
+   *   done     本轮结束后的完整会话
+   */
+  async function turn(id, token, input, emit, signal) {
+    const session = requireSession(id, token);
+    const text = String(input?.text || "").trim();
+    const channel = input?.via === "voice" ? "voice" : "text";
+    if (!text) throw fail(400, "请先说点什么，或者写下你的回答。");
+    if (text.length > 4000) throw fail(400, "这段回答太长了，请收在 4000 字以内。");
+    const section = SECTION_LABELS[input?.section] ? input.section : "";
+    const intent = classifyUtterance(text, {
+      hasProfile: !!session.profile,
+      complete: !firstMissingTopic(session.coverage),
+      topic: firstMissingTopic(session.coverage),
+      section,
+      sectionLabel: SECTION_LABELS[section],
+    });
+    emit("intent", intent);
+
+    if (intent.kind === "edit") {
+      emit("action", { action: "edit", instruction: intent.instruction, section: intent.section || "" });
+      return { ...ownerSession(session), intent, via: channel };
+    }
+    if (intent.kind === "command") {
+      store.addEvent({ type: "voice_command", sessionId: id, command: intent.command, via: channel });
+      if (["generate", "publish", "stop"].includes(intent.command)) {
+        emit("action", { action: intent.command });
+        return { ...ownerSession(session), intent, via: channel };
+      }
+      return runCommand(session, id, intent.command, emit, { intent, via: channel });
+    }
+
+    const { topic, follow, round } = applyAnswer(session, text, channel);
+    const nextTopic = follow ? topic : firstMissingTopic(session.coverage);
+    emit("meta", { topic, nextTopic, isFollowup: follow, followRound: round, coverage: session.coverage, recap: session.recaps[topic] || "" });
+    let result;
+    if (!nextTopic) {
+      const recap = ruleRecap(text);
+      const lines = [recap && { text: recap, kind: "recap" }, { text: COMPLETE_LINE, kind: "info" }].filter(Boolean);
+      emitLines(lines, emit);
+      result = { sentences: lines, reply: lines.map((item) => item.text).join(""), recap, source: "offline", fallback: false };
+    } else {
+      result = await streamInterview({
+        topic: nextTopic,
+        follow: round,
+        answer: text,
+        answeredTopic: topic,
+        transcript: transcriptOf(session),
+        imported: importText(session),
+      }, config, {
+        signal,
+        onSentence: (item, index) => emit("sentence", { index, text: item.text, kind: item.kind }),
+      });
+    }
+    // 大模型给出的复述比规则截断更通顺：有就用它做这个话题的一句话摘要。
+    if (!follow && result.source === "llm" && result.recap) session.recaps[topic] = recapText(result.recap);
+    session.messages.push({ role: "assistant", content: result.reply, topic, isFollowup: follow, at: Date.now() });
+    session.lastSource = result.source;
+    session.lastFallback = !!result.fallback;
+    store.addEvent({ type: "interview_turn", sessionId: id, topic, isFollowup: follow, followRound: round, coverage: session.coverage, via: channel, stream: true });
+    if (channel === "voice") store.addEvent({ type: "voice_turn", sessionId: id, topic, length: text.length });
+    if (result.fallback) store.addEvent({ type: "llm_fallback", agent: "interview", sessionId: id });
+    return finishTurn(session, id, { intent, isFollowup: follow, followRound: round, source: result.source, fallback: !!result.fallback, via: channel });
+  }
+
+  // 口令：跳过 / 返回 / 我说错了 / 再说一遍。全部走规则，不调用大模型，立刻有反应。
+  function runCommand(session, id, command, emit, extra) {
+    session.recaps = session.recaps || {};
+    session.skipped = session.skipped || {};
+    const current = firstMissingTopic(session.coverage);
+    let lines;
+    let topic = current;
+    if (command === "repeat") {
+      const last = [...session.messages].reverse().find((message) => message.role === "assistant");
+      const said = splitSentences(last ? last.content : questionFor(current || "who", 0));
+      emitLines(said.map((text) => ({ text, kind: "repeat" })), emit);
+      return { ...ownerSession(session), ...extra };
+    }
+    if (command === "skip") {
+      if (!current) {
+        lines = [{ text: "已经没有要聊的话题了。", kind: "ack" }, { text: COMPLETE_LINE, kind: "info" }];
+      } else {
+        session.coverage[current] = true;
+        session.skipped[current] = true;
+        session.recaps[current] = "";
+        const next = firstMissingTopic(session.coverage);
+        lines = [{ text: `好，「${TOPIC_LABELS[current]}」先跳过，之后想补随时说。`, kind: "ack" }];
+        lines.push(next ? { text: questionFor(next, 0), kind: "question" } : { text: COMPLETE_LINE, kind: "info" });
+      }
+    } else if (command === "back") {
+      const index = current ? TOPIC_IDS.indexOf(current) : TOPIC_IDS.length;
+      const previous = TOPIC_IDS.slice(0, index).reverse().find((item) => session.coverage[item]);
+      if (!previous) {
+        lines = [{ text: "这已经是第一个话题了。", kind: "ack" }, { text: questionFor(current || "who", 0), kind: "question" }];
+      } else {
+        topic = previous;
+        session.coverage[previous] = false;
+        session.followups[previous] = 0;
+        delete session.skipped[previous];
+        delete session.recaps[previous];
+        lines = [{ text: `好，回到「${TOPIC_LABELS[previous]}」，想补充或者重说都可以。`, kind: "ack" }, { text: questionFor(previous, 0), kind: "question" }];
+      }
+    } else if (command === "redo") {
+      const last = [...session.messages].reverse().find((message) => message.role === "user" && !message.retracted && !message.command);
+      if (!last) {
+        lines = [{ text: "还没有可以更正的回答。", kind: "ack" }, { text: questionFor(current || "who", 0), kind: "question" }];
+      } else {
+        last.retracted = true;
+        topic = last.topic || current || "who";
+        session.coverage[topic] = false;
+        session.followups[topic] = 0;
+        delete session.skipped[topic];
+        delete session.recaps[topic];
+        lines = [{ text: "没关系，刚才那句不算。", kind: "ack" }, { text: questionFor(topic, 0), kind: "question" }];
+      }
+    } else {
+      throw fail(400, "没有这个口令。");
+    }
+    emitLines(lines, emit);
+    session.messages.push({ role: "assistant", content: lines.map((item) => item.text).join(""), topic: topic || "", isFollowup: false, command, at: Date.now() });
+    return finishTurn(session, id, extra);
+  }
+
+  // 给按钮用的口令入口（不走流式）：返回会话与要说的句子。
+  function command(id, token, name) {
+    const session = requireSession(id, token);
+    if (!["skip", "back", "redo", "repeat"].includes(name)) throw fail(400, "没有这个口令。");
+    const sentences = [];
+    store.addEvent({ type: "voice_command", sessionId: id, command: name, via: "button" });
+    const result = runCommand(session, id, name, (event, data) => { if (event === "sentence") sentences.push(data); }, { command: name });
+    return { ...result, sentences };
   }
 
   async function addImport(id, token, text, kind) {
@@ -229,7 +414,7 @@ function createService(store, config) {
     const agent = await runAgent("organize", {
       transcript: transcriptOf(session),
       imported: importText(session),
-      turns: session.messages.filter((message) => message.role === "user"),
+      turns: liveMessages(session).filter((message) => message.role === "user"),
     }, config);
     let profile = stripPrivateNotes(normalizeProfile(agent.profile), session.imports);
     if (!profile.name) {
@@ -429,6 +614,8 @@ function createService(store, config) {
   return {
     createSession,
     sendMessage,
+    turn,
+    command,
     addImport,
     generateProfile,
     editProfile,
@@ -445,8 +632,17 @@ function createService(store, config) {
   };
 }
 
+// 说错后撤回的回答不参与草稿、整理和复述。
+function liveMessages(session) {
+  return session.messages.filter((message) => !message.retracted);
+}
+
+function recapText(recap) {
+  return String(recap || "").replace(/^记下了[：:]\s*/, "").replace(/[。.]\s*$/, "").trim();
+}
+
 function transcriptOf(session) {
-  return session.messages
+  return liveMessages(session)
     .filter((message) => message.role === "user")
     .map((message) => message.content)
     .join("\n");
@@ -492,4 +688,4 @@ function cardOf(site) {
   };
 }
 
-module.exports = { createService, isVague, oneQuestion, countQuestions, TOPIC_IDS };
+module.exports = { createService, isVague, oneQuestion, countQuestions, TOPIC_IDS, FOLLOWUP_MAX, SECTION_LABELS };

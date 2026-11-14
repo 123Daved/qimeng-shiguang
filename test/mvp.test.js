@@ -384,19 +384,28 @@ test("没有编辑密钥的人不能修改会话", async () => {
   });
 });
 
-test("笼统回答只追问一次，而且每轮只有一个问题", async () => {
+test("笼统回答最多追问两轮，而且每轮只有一个问题", async () => {
   await withApp({}, async ({ base }) => {
     const created = await api(base, "POST", "/api/sessions", { body: { mode: "interview" } });
     const { id, editToken } = created.json;
-    assert.equal((created.json.session.messages.at(-1).content.match(/[？?]/g) || []).length, 1);
+    const questions = (text) => (text.match(/[？?]/g) || []).length;
+    assert.equal(questions(created.json.session.messages.at(-1).content), 1);
+    assert.equal(created.json.session.followupMax, 2);
     const first = await api(base, "POST", `/api/sessions/${id}/messages`, { token: editToken, body: { text: "做摄影的" } });
     assert.equal(first.json.isFollowup, true);
     assert.equal(first.json.coverage.who, false);
-    assert.equal((first.json.messages.at(-1).content.match(/[？?]/g) || []).length, 1);
+    assert.equal(questions(first.json.messages.at(-1).content), 1);
     const second = await api(base, "POST", `/api/sessions/${id}/messages`, { token: editToken, body: { text: "就这样" } });
-    assert.equal(second.json.isFollowup, false);
-    assert.equal(second.json.coverage.who, true);
-    assert.equal((second.json.messages.at(-1).content.match(/[？?]/g) || []).length, 1);
+    assert.equal(second.json.isFollowup, true, "第二次笼统回答还会再追问一轮");
+    assert.equal(second.json.coverage.who, false);
+    assert.equal(questions(second.json.messages.at(-1).content), 1);
+    assert.notEqual(second.json.messages.at(-1).content, first.json.messages.at(-1).content, "两轮追问不能是同一句话");
+    assert.match(second.json.messages.at(-1).content, /「.+」/, "第二轮追问要给一个可以照着说的例子");
+    const third = await api(base, "POST", `/api/sessions/${id}/messages`, { token: editToken, body: { text: "随便" } });
+    assert.equal(third.json.isFollowup, false, "追问两轮后不再卡住，进入下一个话题");
+    assert.equal(third.json.coverage.who, true);
+    assert.equal(third.json.followups.who, 2);
+    assert.equal(questions(third.json.messages.at(-1).content), 1);
   });
 });
 

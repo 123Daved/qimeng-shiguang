@@ -68,4 +68,91 @@ async function chatComplete({ baseUrl, apiKey, model, messages, maxTokens, fetch
   return extracted.text;
 }
 
-module.exports = { chatComplete, parseJsonLoose, textFromMessage };
+/**
+ * 流式对话：每收到一段正文就回调 onDelta，返回完整正文。
+ * - 思考开关与 chatComplete 一致（模型默认开思考，必须显式关闭）；推理字段不当作正文。
+ * - 首包超时与总超时分开算：采访要快，首包迟迟不来就尽早放弃去降级。
+ * - 调用方可以用 signal 中途停止（例如已经拿到了那一个问句）。
+ */
+async function chatStream({ baseUrl, apiKey, model, messages, maxTokens, fetchImpl, onDelta, signal, firstTokenMs = 15000, totalMs = 40000 }) {
+  const endpoint = `${String(baseUrl || "").replace(/\/$/, "")}/chat/completions`;
+  const body = {
+    model,
+    messages,
+    max_tokens: maxTokens,
+    temperature: 0.3,
+    stream: true,
+    thinking: { type: "disabled" },
+    chat_template_kwargs: { enable_thinking: false },
+  };
+  const controller = new AbortController();
+  const fail = (code) => Object.assign(new Error(code), { code });
+  let timedOut = false;
+  let firstTimer = setTimeout(() => { timedOut = true; controller.abort(); }, firstTokenMs);
+  const totalTimer = setTimeout(() => { timedOut = true; controller.abort(); }, totalMs);
+  const onOuterAbort = () => controller.abort();
+  if (signal) {
+    if (signal.aborted) controller.abort();
+    else signal.addEventListener("abort", onOuterAbort, { once: true });
+  }
+  let full = "";
+  const take = (text) => {
+    if (!text) return;
+    if (firstTimer) { clearTimeout(firstTimer); firstTimer = null; }
+    full += text;
+    if (onDelta) onDelta(text);
+  };
+  try {
+    let response;
+    try {
+      response = await (fetchImpl || fetch)(endpoint, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", Accept: "text/event-stream" },
+        body: JSON.stringify(body),
+        signal: controller.signal,
+      });
+    } catch {
+      throw fail(signal && signal.aborted ? "aborted" : timedOut ? "timeout" : "network");
+    }
+    if (!response.ok) throw fail("http");
+    const type = response.headers.get("content-type") || "";
+    if (/application\/json/.test(type)) {
+      // 有些网关不支持流式，会直接返回整段 JSON：照常处理。
+      const payload = await response.json();
+      take(textFromMessage(payload.choices?.[0]?.message || {}).text);
+    } else {
+      const decoder = new TextDecoder();
+      let pending = "";
+      let done = false;
+      try {
+        for await (const chunk of response.body) {
+          pending += decoder.decode(chunk, { stream: true });
+          let index;
+          while ((index = pending.indexOf("\n")) >= 0) {
+            const line = pending.slice(0, index).trim();
+            pending = pending.slice(index + 1);
+            if (!line.startsWith("data:")) continue;
+            const data = line.slice(5).trim();
+            if (data === "[DONE]") { done = true; break; }
+            try {
+              take(JSON.parse(data).choices?.[0]?.delta?.content || "");
+            } catch { /* 忽略不完整或非 JSON 的行 */ }
+          }
+          if (done) break;
+        }
+      } catch {
+        if (signal && signal.aborted) return full;
+        throw fail(timedOut ? "timeout" : "network");
+      }
+    }
+    if (!full.trim()) throw fail("empty");
+    return full;
+  } finally {
+    clearTimeout(firstTimer);
+    clearTimeout(totalTimer);
+    if (signal) signal.removeEventListener("abort", onOuterAbort);
+    if (!controller.signal.aborted) controller.abort();
+  }
+}
+
+module.exports = { chatComplete, chatStream, parseJsonLoose, textFromMessage };
