@@ -182,128 +182,51 @@ function enterError(message, kind) {
 }
 
 /* ------------------------------------------------------------------ voice orb */
+// 语音球的绘制在 /orb.js（平面叠层、五状态各有形状标记）；这里每帧把真实电平喂给它：
+// 在听 → 麦克风电平（没有授权时用识别中间结果的合成律动）；在说 → 朗读电平。
 const orb = (() => {
   const canvas = $("#orb");
-  const ctx = canvas.getContext("2d");
-  let width = 0;
-  let height = 0;
-  let dpr = 1;
-  let t = 0;
-  let smooth = 0;
+  let core = null;
   let synthetic = 0;
-  let last = 0;
+  let last = -1;
+
+  function size() {
+    const box = canvas.parentElement;
+    // 语音球占进度环内圈的 80%，外面留给话题进度环。
+    return Math.round(Math.max(120, Math.min(176, ((box && box.clientWidth) || 220) * 0.8)));
+  }
+
+  function tick() {
+    if (!core) return;
+    if (!document.hidden) {
+      synthetic *= 0.94;
+      let target = 0;
+      if (state.stage === "listening") target = meter.active ? meter.read().level : synthetic;
+      else if (state.stage === "speaking") target = speaker.speaking ? speaker.level() : 0.12;
+      state.level = target;
+      core.setState(state.stage);
+      core.setLevel(reduceMotion ? 0 : target);
+    }
+    window.requestAnimationFrame(tick);
+  }
 
   function resize() {
-    dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const rect = canvas.getBoundingClientRect();
-    width = rect.width;
-    height = rect.height;
-    canvas.width = Math.round(width * dpr);
-    canvas.height = Math.round(height * dpr);
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const next = size();
+    if (core && next !== last) { last = next; core.resize(next); }
   }
 
-  function bump(amount) { synthetic = Math.min(1, synthetic + amount); }
-
-  function draw(now) {
-    const dt = Math.min(64, now - (last || now));
-    last = now;
-    t += dt / 1000;
-    if (!width) resize();
-    const meterData = meter.active ? meter.read() : { level: 0, bands: null };
-    let target = 0;
-    if (state.stage === "listening") target = meter.active ? meterData.level : synthetic;
-    else if (state.stage === "speaking") target = speaker.speaking ? speaker.level() : 0.1;
-    else if (state.stage === "thinking") target = 0.12;
-    synthetic *= 0.94;
-    smooth += (target - smooth) * 0.18;
-    state.level = smooth;
-
-    ctx.clearRect(0, 0, width, height);
-    const cx = width / 2;
-    const cy = height / 2;
-    const base = Math.min(width, height) * 0.2;
-    const lvl = reduceMotion ? 0 : smooth;
-
-    // 光晕
-    const glowR = base * (2.1 + lvl * 0.9);
-    const glow = ctx.createRadialGradient(cx, cy, base * 0.6, cx, cy, glowR);
-    const listening = state.stage === "listening";
-    glow.addColorStop(0, listening ? "rgba(169, 83, 47, 0.30)" : "rgba(169, 83, 47, 0.16)");
-    glow.addColorStop(1, "rgba(169, 83, 47, 0)");
-    ctx.fillStyle = glow;
-    ctx.beginPath();
-    ctx.arc(cx, cy, glowR, 0, Math.PI * 2);
-    ctx.fill();
-
-    // 外圈频谱条
-    const bars = 72;
-    const bands = meterData.bands;
-    ctx.lineCap = "round";
-    for (let i = 0; i < bars; i += 1) {
-      const angle = (i / bars) * Math.PI * 2 - Math.PI / 2;
-      let v;
-      if (bands && listening) {
-        const idx = 2 + Math.floor((i < bars / 2 ? i : bars - i) / (bars / 2) * 90);
-        v = (bands[idx] || 0) / 255;
-      } else {
-        v = lvl * (0.5 + 0.5 * Math.sin(i * 0.9 + t * 4)) + (reduceMotion ? 0 : 0.04 * (1 + Math.sin(i * 0.5 + t * 1.2)));
-      }
-      const inner = base * 1.42;
-      const len = 4 + v * base * 0.75;
-      ctx.strokeStyle = `rgba(169, 83, 47, ${0.18 + v * 0.6})`;
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.moveTo(cx + Math.cos(angle) * inner, cy + Math.sin(angle) * inner);
-      ctx.lineTo(cx + Math.cos(angle) * (inner + len), cy + Math.sin(angle) * (inner + len));
-      ctx.stroke();
-    }
-
-    // 有机形态的声纹球
-    const points = 96;
-    const breathe = reduceMotion ? 0 : Math.sin(t * 1.4) * 0.025;
-    ctx.beginPath();
-    for (let i = 0; i <= points; i += 1) {
-      const a = (i / points) * Math.PI * 2;
-      const wobble = Math.sin(a * 3 + t * 2.2) * 0.5 + Math.sin(a * 5 - t * 1.7) * 0.3 + Math.sin(a * 7 + t * 3.1) * 0.2;
-      const r = base * (1.18 + breathe + wobble * (0.03 + lvl * 0.22));
-      const x = cx + Math.cos(a) * r;
-      const y = cy + Math.sin(a) * r;
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-    ctx.closePath();
-    const fill = ctx.createRadialGradient(cx - base * 0.4, cy - base * 0.5, base * 0.2, cx, cy, base * 1.4);
-    fill.addColorStop(0, "rgba(255, 236, 222, 0.95)");
-    fill.addColorStop(0.55, "rgba(233, 180, 150, 0.55)");
-    fill.addColorStop(1, "rgba(169, 83, 47, 0.22)");
-    ctx.fillStyle = fill;
-    ctx.fill();
-    ctx.strokeStyle = `rgba(169, 83, 47, ${0.25 + lvl * 0.5})`;
-    ctx.lineWidth = 1.5;
-    ctx.stroke();
-
-    // 思考中：旋转的三个点
-    if (state.stage === "thinking") {
-      for (let k = 0; k < 3; k += 1) {
-        const a = t * 2.4 + (k * Math.PI * 2) / 3;
-        const r = base * 1.62;
-        ctx.fillStyle = "rgba(169, 83, 47, 0.75)";
-        ctx.beginPath();
-        ctx.arc(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 3.5, 0, Math.PI * 2);
-        ctx.fill();
-      }
-    }
-  }
-
-  let timer = 0;
-  function loop(now) {
-    if (!document.hidden) draw(now);
-    if (reduceMotion) timer = window.setTimeout(() => requestAnimationFrame(loop), 400);
-    else requestAnimationFrame(loop);
-  }
   window.addEventListener("resize", resize);
-  return { start: () => requestAnimationFrame(loop), bump, resize, stop: () => window.clearTimeout(timer) };
+  return {
+    start() {
+      if (!window.QMOrb || !canvas) return;
+      last = size();
+      core = new window.QMOrb(canvas, { size: last });
+      window.requestAnimationFrame(tick);
+    },
+    bump(amount) { synthetic = Math.min(1, synthetic + amount); },
+    resize,
+    stop() { if (core) core.destroy(); },
+  };
 })();
 
 const meter = Voice.createMeter();
@@ -361,7 +284,6 @@ function renderProgress(coverage) {
     if (coverage[id]) { s = "done"; stateText = "已覆盖"; }
     else if (current && current[0] === id) { s = "current"; stateText = "进行中"; }
     item.dataset.state = s;
-    item.style.setProperty("--a", `${index * 60 + 30}deg`);
     if (s === "current") item.setAttribute("aria-current", "step");
     if (coverage[id] && !prev[id] && state.session) item.classList.add("just-done");
     item.innerHTML = s === "done" ? icon("check") : icon(iconName);
@@ -1203,7 +1125,8 @@ document.addEventListener("keyup", (event) => {
 function setInput(mode, keepFocus) {
   state.input = mode;
   studio.dataset.input = mode;
-  document.querySelectorAll("[data-input]").forEach((btn) => btn.setAttribute("aria-checked", btn.dataset.input === mode ? "true" : "false"));
+  // 只更新切换按钮：<main> 自身也带 data-input，不能给它加 aria-checked。
+  document.querySelectorAll("button[data-input]").forEach((btn) => btn.setAttribute("aria-checked", btn.dataset.input === mode ? "true" : "false"));
   if (mode === "text") {
     stopLoop();
     bargeIn.stop();
@@ -1232,7 +1155,7 @@ function setTts(on) {
   if (!on) speaker.cancel();
 }
 
-document.querySelectorAll("[data-input]").forEach((btn) => btn.addEventListener("click", () => setInput(btn.dataset.input)));
+document.querySelectorAll("button[data-input]").forEach((btn) => btn.addEventListener("click", () => setInput(btn.dataset.input)));
 document.querySelectorAll("[data-talk]").forEach((btn) => btn.addEventListener("click", () => setTalk(btn.dataset.talk)));
 ttsToggle.addEventListener("click", () => setTts(!state.tts));
 document.querySelectorAll("[data-device]").forEach((btn) => btn.addEventListener("click", () => {
