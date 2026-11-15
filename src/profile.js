@@ -12,13 +12,58 @@ const TOPICS = [
 const TOPIC_IDS = TOPICS.map((topic) => topic.id);
 
 // 无原型对象：用户或模型给出的 "__proto__"、"constructor" 之类的值不会被当成合法主题。
+// 主推三种职业风格（慢屋 / 纸山 / 贴纸），保留简约、墨色。主行动色都是品牌陶土，不随风格改变。
 const THEMES = Object.assign(Object.create(null), {
-  warm: { id: "warm", label: "温暖", accent: "#A9532F" },
-  simple: { id: "simple", label: "简约", accent: "#924526" },
-  ink: { id: "ink", label: "墨色", accent: "#7C3B22" },
-  cinema: { id: "cinema", label: "光影", accent: "#A9532F" },
-  editorial: { id: "editorial", label: "杂志", accent: "#924526" },
+  slowhouse: { id: "slowhouse", label: "慢屋", accent: "#A9532F", forWhom: "民宿、手作、咖啡、慢生活空间" },
+  papermountain: { id: "papermountain", label: "纸山", accent: "#A9532F", forWhom: "品牌、平面、插画、摄影等作品集" },
+  sticker: { id: "sticker", label: "贴纸", accent: "#A9532F", forWhom: "产品、交互、独立开发、创业" },
+  simple: { id: "simple", label: "简约", accent: "#924526", forWhom: "想要留白多、信息清楚" },
+  ink: { id: "ink", label: "墨色", accent: "#7C3B22", forWhom: "想要沉稳、有故事感" },
 });
+
+// 旧主题的别名：老档案和老链接（?theme=warm 等）继续能打开，渲染成最接近的新风格。
+const THEME_ALIASES = Object.assign(Object.create(null), {
+  warm: "slowhouse",
+  cinema: "slowhouse",
+  editorial: "papermountain",
+});
+
+function resolveTheme(id) {
+  const key = String(id ?? "").trim().toLowerCase();
+  if (THEMES[key]) return key;
+  return THEME_ALIASES[key] || "";
+}
+
+// 没说想要什么风格时，按职业推荐。
+function recommendStyle(profile) {
+  const text = [profile.title, (profile.tags || []).join(" "), (profile.services || []).map((item) => item.name).join(" ")].join(" ");
+  if (/民宿|客栈|美宿|咖啡|手作|手工|花店|茶|烘焙|院子|海边|山居|露营|餐|酒馆/.test(text)) return "slowhouse";
+  if (/产品|开发|程序|工程师|UI|UX|交互|创业|独立开发|硬件|小程序|App|SaaS/i.test(text)) return "sticker";
+  if (/设计|品牌|插画|平面|视觉|摄影|艺术|作品|导视|包装|画/.test(text)) return "papermountain";
+  return "slowhouse";
+}
+
+// 图片只接受 https 地址或本站 /img/ 下的图片；其余一律丢弃（不转义了再用，而是根本不收）。
+function cleanImageUrl(value) {
+  const url = String(value ?? "").trim();
+  if (url.length > 500) return "";
+  if (/^\/img\/[A-Za-z0-9_\-/]+\.(?:jpe?g|png|webp|avif)$/.test(url) && !url.includes("..")) return url;
+  if (/^https:\/\/[A-Za-z0-9.-]+(?::\d+)?\/[^\s"'<>`\\]*$/.test(url)) return url;
+  return "";
+}
+
+function cleanMedia(input) {
+  const src = asObject(input);
+  const image = (item) => {
+    const obj = asObject(item);
+    const url = cleanImageUrl(obj.url);
+    return url ? { url, alt: cleanString(obj.alt, 120), caption: cleanString(obj.caption, 40) } : null;
+  };
+  return {
+    hero: image(src.hero),
+    gallery: (Array.isArray(src.gallery) ? src.gallery : []).map(image).filter(Boolean).slice(0, 6),
+  };
+}
 
 function blankContacts() {
   return { wechat: "", email: "", phone: "", xiaohongshu: "", douyin: "", website: "" };
@@ -39,8 +84,9 @@ function blankProfile() {
     story: "",
     contacts: blankContacts(),
     faq: [],
-    theme: "warm",
-    accent: THEMES.warm.accent,
+    media: { hero: null, gallery: [] },
+    theme: "slowhouse",
+    accent: THEMES.slowhouse.accent,
   };
 }
 
@@ -54,13 +100,16 @@ function asObject(value) {
 
 function inferTheme(text) {
   const raw = String(text ?? "");
-  if (/光影|电影感|电影风|暗色|深色|cinema/i.test(raw)) return "cinema";
-  if (/杂志|画报|editorial|magazine/i.test(raw)) return "editorial";
+  if (/慢屋|slowhouse/i.test(raw)) return "slowhouse";
+  if (/纸山|papermountain/i.test(raw)) return "papermountain";
+  if (/贴纸|sticker/i.test(raw)) return "sticker";
   if (/简约|极简|干净/.test(raw)) return "simple";
   if (/墨色|墨韵|故事感|沉稳/.test(raw)) return "ink";
-  if (/温暖|温馨|暖/.test(raw)) return "warm";
-  if (THEMES[raw]) return raw;
-  return "";
+  if (/杂志|画报|作品集|editorial|magazine/i.test(raw)) return "papermountain";
+  if (/活泼|有个性|有趣|大胆|醒目/.test(raw)) return "sticker";
+  if (/光影|电影感|电影风|暗色|深色|cinema/i.test(raw)) return "slowhouse";
+  if (/温暖|温馨|暖|生活感/.test(raw)) return "slowhouse";
+  return resolveTheme(raw);
 }
 
 function normalizeProfile(input) {
@@ -106,7 +155,8 @@ function normalizeProfile(input) {
   const contacts = asObject(src.contacts);
   profile.contacts = blankContacts();
   for (const key of Object.keys(profile.contacts)) profile.contacts[key] = cleanString(contacts[key], 120);
-  const theme = THEMES[src.theme] ? src.theme : inferTheme(src.theme) || inferTheme(src.style) || "warm";
+  profile.media = cleanMedia(src.media);
+  const theme = resolveTheme(src.theme) || inferTheme(src.theme) || inferTheme(src.style) || recommendStyle(profile);
   profile.theme = theme;
   profile.accent = THEMES[theme].accent;
   profile.schema_version = "0.1";
@@ -125,7 +175,7 @@ function coverageFromText(text) {
     work: /经历与作品|经历：|作品：/.test(raw),
     story: /我的故事|之所以/.test(raw),
     seek: /联系方式|微信|电话|邮箱|小红书|抖音|正在寻找/.test(raw),
-    style: /网站风格|想要温暖|想要简约|想要墨色|想要光影|想要杂志|风格想要|风格换成/.test(raw),
+    style: /网站风格|想要温暖|想要简约|想要墨色|想要光影|想要杂志|想要慢屋|想要纸山|想要贴纸|风格想要|风格换成/.test(raw),
   };
 }
 
@@ -276,7 +326,7 @@ function extractProfileFromText(text) {
 
 function diffFields(before, after) {
   const changed = [];
-  const keys = ["name", "title", "tagline", "city", "about", "story", "theme", "accent", "tags", "services", "seeking", "highlights", "contacts", "faq"];
+  const keys = ["name", "title", "tagline", "city", "about", "story", "theme", "accent", "tags", "services", "seeking", "highlights", "contacts", "faq", "media"];
   for (const key of keys) {
     if (JSON.stringify(before[key]) !== JSON.stringify(after[key])) changed.push(key);
   }
@@ -287,7 +337,7 @@ function classifyInstruction(instruction) {
   const text = String(instruction || "").trim();
   if (/加一个服务|新增服务|增加一项服务|加一项服务/.test(text)) return "add_service";
   if (/简介|关于我|文案|活泼|写得/.test(text) && !/风格/.test(text)) return "about";
-  if (/简约|极简|温暖|墨色|光影|电影感|杂志|画报|风格|主题/.test(text)) return "theme";
+  if (/慢屋|纸山|贴纸|简约|极简|温暖|墨色|光影|电影感|杂志|画报|风格|主题/.test(text)) return "theme";
   return "general";
 }
 
@@ -345,6 +395,11 @@ const DEMO_IMPORT = `我是阿岚，在惠州双月湾做民宿主理人。小�
 `;
 
 module.exports = {
+  cleanMedia,
+  cleanImageUrl,
+  recommendStyle,
+  resolveTheme,
+  THEME_ALIASES,
   TOPICS,
   TOPIC_IDS,
   THEMES,

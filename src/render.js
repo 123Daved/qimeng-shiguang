@@ -1,7 +1,8 @@
 "use strict";
 
 const { escapeHtml, escapeXml, sanitizeUrl, jsonForScript } = require("./security");
-const { normalizeProfile, THEMES } = require("./profile");
+const { normalizeProfile, THEMES, resolveTheme } = require("./profile");
+const { renderStyleBody, STYLE_IDS } = require("./styles");
 const { icon } = require("./icons");
 
 const MARK = '<svg class="mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6" fill="#A9532F"/><circle cx="12" cy="8.2" r="1.5" fill="#FFFFFF"/><path d="M6 14.5c2.2-3.2 4-4.8 6-4.8s3.8 1.6 6 4.8" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16.8h10" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round"/></svg>';
@@ -106,7 +107,9 @@ function renderSite(options) {
   const built = new Set(options.built || []);
   const draft = !!options.draft;
   const filled = new Set(options.filled || []);
-  const themeId = THEMES[options.themeOverride] ? options.themeOverride : (THEMES[profile.theme] ? profile.theme : "warm");
+  // ?theme= 预览只影响展示，不改档案；旧主题名按别名映射到新风格。
+  const themeId = resolveTheme(options.themeOverride) || resolveTheme(profile.theme) || "slowhouse";
+  const styled = STYLE_IDS.includes(themeId);
   const theme = THEMES[themeId];
   const contacts = contactItems(profile);
   const faqQuestions = profile.faq.map((item) => item.q);
@@ -197,7 +200,7 @@ function renderSite(options) {
   const heroClass = ["hero", changed.has("theme") || changed.has("accent") || changed.has("name") || changed.has("about") ? "is-changed" : "", built.has("hero") || built.has("theme") ? "is-built" : "", heroPending ? "is-pending" : ""].filter(Boolean).join(" ");
 
   return `<!DOCTYPE html>
-<html lang="zh-CN" data-qd-product="life" data-qd-theme="${themeId === "cinema" ? "dark" : "light"}">
+<html lang="zh-CN" data-qd-product="life" data-qd-theme="light">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -205,17 +208,22 @@ function renderSite(options) {
   <meta name="description" content="${escapeHtml(profile.tagline || profile.about || "个人网站")}">
   ${pageUrl ? `<link rel="canonical" href="${escapeHtml(options.absoluteUrl || pageUrl)}">` : ""}
   ${draft ? '<meta name="robots" content="noindex">' : ""}
-  <meta name="theme-color" content="${themeId === "cinema" ? "#16110E" : escapeHtml(theme.accent)}">
+  <meta name="theme-color" content="${escapeHtml(theme.accent)}">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/site.css">
+  ${styled ? '<link rel="stylesheet" href="/site-styles.css">' : ""}
+  ${styled && profile.media.hero ? `<link rel="preload" as="image" href="${escapeHtml(profile.media.hero.url)}" fetchpriority="high">` : ""}
   <script type="application/ld+json">${ld}</script>
 </head>
-<body class="site theme-${escapeHtml(themeId)}${draft ? " is-draft" : ""}${options.preview ? " is-preview" : ""}" style="--site-accent:${escapeHtml(theme.accent)}">
+<body class="site ${styled ? `style-${themeId}` : `theme-${themeId}`}${draft ? " is-draft" : ""}${options.preview ? " is-preview" : ""}" style="--site-accent:${escapeHtml(theme.accent)}">
   <a class="skip" href="#services">跳到服务清单</a>
-  <div class="grain" aria-hidden="true"></div>
-  <div class="cursor-glow" aria-hidden="true"></div>
+  ${styled ? "" : '<div class="grain" aria-hidden="true"></div>\n  <div class="cursor-glow" aria-hidden="true"></div>'}
   ${example}
   ${preview}
+  ${styled ? renderStyleBody(themeId, {
+    profile, displayName, draft, filled, changed, built, slug, contacts, icon, sectionClass, pendingBlock,
+    contactIcon: (key) => CONTACT_ICONS[key] || "link",
+  }) : `
   <nav class="site-nav" aria-label="页面导航">
     <a class="site-brand" href="#top">${MARK}<span>${escapeHtml(displayName)}</span></a>
     <div class="site-links">${navLinks}</div>
@@ -250,7 +258,7 @@ function renderSite(options) {
     ${marquee}
   </header>
   <main>${sectionHtml}
-  </main>
+  </main>`}
   <footer class="site-footer">
     <a class="footer-cta" href="/?from=footer&amp;ref=${encodeURIComponent(slug)}" data-magnetic>我也要一个 →</a>
     ${machine}
@@ -307,6 +315,7 @@ function renderProfileJson(profile, extra) {
     faq: current.faq,
     theme: current.theme,
     accent: current.accent,
+    media: current.media,
   };
 }
 

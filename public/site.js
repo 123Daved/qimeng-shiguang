@@ -66,6 +66,13 @@ document.querySelector("#avatar-open").addEventListener("click", () => {
     body: JSON.stringify({ type: "avatar_open", slug: boot.slug }),
   });
 });
+// 页面里「先问问 AI 分身」这类链接：打开同一个对话框（无脚本时会跳到 #avatar 位置）。
+document.querySelectorAll("[data-open-avatar]").forEach((link) => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+    document.querySelector("#avatar-open").click();
+  });
+});
 document.querySelector("#avatar-close").addEventListener("click", () => {
   panel.hidden = true;
 });

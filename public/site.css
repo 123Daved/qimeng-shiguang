@@ -268,7 +268,8 @@ a.contact:hover { border-color: var(--action); transform: translateY(-2px); }
 .machine { display: flex; flex-wrap: wrap; gap: 16px; font-family: var(--font-mono); font-size: 13px; }
 .machine a { color: var(--muted); }
 .brand-lockup { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; }
-.mother { color: var(--brand); font-weight: 600; }
+/* 母品牌署名用 brand.700（浅底上的强调文字），正文对比度 ≥4.5:1 */
+.mother { color: #06675C; font-weight: 600; }
 .notice { color: var(--muted); font-size: 13px; }
 
 /* Avatar --------------------------------------------------------------------- */
@@ -279,8 +280,9 @@ a.contact:hover { border-color: var(--action); transform: translateY(-2px); }
   box-shadow: 0 12px 32px rgba(169, 83, 47, 0.32); transition: transform 200ms var(--ease), background-color 200ms var(--ease);
 }
 .avatar-launch:hover { background: var(--action-hover); transform: translateY(-2px); }
-.avatar-launch em, .ai-flag { font-style: normal; font-size: 12px; padding: 2px 8px; border-radius: 999px; background: #EDF3FE; color: #315EAA; font-weight: 600; }
-.avatar-launch em { background: rgba(255, 255, 255, 0.2); color: #FFFFFF; }
+.avatar-launch em, .ai-flag { font-style: normal; font-size: 14px; padding: 2px 8px; border-radius: 999px; background: #EDF3FE; color: #315EAA; font-weight: 600; }
+/* 陶土按钮上的「AI 生成」：深陶土底白字，对比度约 8:1 */
+.avatar-launch em { background: #7C3B22; color: #FFFFFF; }
 .avatar {
   position: fixed; right: 20px; bottom: 84px; z-index: 31; width: min(400px, calc(100% - 40px)); max-height: min(72vh, 640px); overflow: auto;
   background: #FFFFFF; color: #20352F; border: 1px solid #D6DFDA; border-radius: var(--radius); padding: 16px; box-shadow: 0 24px 64px rgba(32, 53, 47, 0.24);

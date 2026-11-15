@@ -166,7 +166,7 @@ test("点选版块修改：服务端只保留该版块字段的改动，其他�
       assert.equal(scoped.json.profile.services[0].price, "399 元起", "被点选的版块照常修改");
       assert.equal(scoped.json.profile.about, "原来的简介。", "其他版块被还原");
       assert.equal(scoped.json.profile.name, "阿岚");
-      assert.equal(scoped.json.profile.theme, "warm");
+      assert.equal(scoped.json.profile.theme, "slowhouse", "主题被还原为原来的风格");
       assert.deepEqual(scoped.json.changed, ["services"]);
       // 不认识的版块名按整站修改处理（与不传 section 相同），不会报错
       const unknown = await api(base, "POST", `/api/sessions/${id}/edits`, { token: editToken, body: { instruction: "价格改成 399 元起", section: "__proto__" } });
@@ -190,7 +190,7 @@ test("主题名不接受原型属性：预览参数与档案字段都退回合�
   for (const bad of ["__proto__", "constructor", "toString", "hasOwnProperty"]) {
     assert.equal(inferTheme(bad), "");
     const profile = normalizeProfile({ name: "测试", theme: bad });
-    assert.equal(profile.theme, "warm");
+    assert.equal(profile.theme, "slowhouse", "非法主题名退回按职业推荐的风格");
     assert.match(profile.accent, /^#[0-9A-F]{6}$/i);
   }
   await withApp({}, async ({ base }) => {

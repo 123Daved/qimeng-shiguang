@@ -73,7 +73,7 @@ test("离线模式可以走完采访、生成、修改、发布、分身和发�
     const generated = await api(base, "POST", `/api/sessions/${id}/profile`, { token: editToken });
     assert.equal(generated.status, 200, generated.text);
     assert.equal(generated.json.profile.name, "林可");
-    assert.equal(generated.json.profile.theme, "warm");
+    assert.equal(generated.json.profile.theme, "slowhouse", "「想要温暖一点」对应慢屋风格（旧名温暖已并入慢屋）");
     assert.ok(generated.json.profile.services.some((item) => item.name === "民宿摄影" && /299/.test(item.price)));
     assert.equal(generated.json.source, "offline");
 
@@ -228,21 +228,32 @@ test("大模型接口报错时自动降级，流程不中断", async () => {
   }
 });
 
-test("脚本注入会被转义，三套主题都渲染服务清单", async () => {
+test("脚本注入会被转义，所有风格都渲染服务清单", async () => {
   const profile = blankProfile();
   profile.name = "<script>alert(1)</script>";
   profile.title = "测试";
   profile.services = [{ name: "<img onerror=alert(1)>", description: "安全", price: "10 元", for_whom: "测试" }];
   profile.about = "</script><script>alert(1)</script>";
-  for (const theme of ["warm", "simple", "ink"]) {
+  profile.tagline = "<b>tag</b>";
+  profile.story = "\"><img src=x onerror=alert(2)>";
+  profile.highlights = [{ title: "<svg onload=alert(3)>", description: "x" }];
+  profile.seeking = [{ who: "<i>who</i>", description: "" }];
+  profile.tags = ["<u>tag</u>"];
+  profile.contacts.wechat = "<a>wx</a>";
+  profile.media = { hero: { url: "/img/hero-seaside.jpg", alt: "\" onerror=\"alert(4)" }, gallery: [{ url: "https://example.com/a.jpg", alt: "<x>", caption: "" }] };
+  for (const theme of ["slowhouse", "papermountain", "sticker", "simple", "ink"]) {
     profile.theme = theme;
     const html = renderSite({ profile, slug: "safe", pageUrl: "/u/safe", modelNotice: "测试模型公示" });
-    assert.equal(html.includes("<script>alert(1)</script>"), false);
+    assert.equal(html.includes("<script>alert(1)</script>"), false, theme);
     assert.match(html, /&lt;script&gt;alert\(1\)&lt;\/script&gt;/);
     assert.match(html, /&lt;img onerror=alert\(1\)&gt;/);
-    assert.match(html, new RegExp(`theme-${theme}`));
-    assert.match(html, /我能提供/);
+    for (const raw of ["<img src=x onerror", "<svg onload", "<b>tag</b>", "<i>who</i>", "<u>tag</u>", "<a>wx</a>", '" onerror="alert(4)']) {
+      assert.equal(html.includes(raw), false, `${theme} 里出现了未转义的 ${raw}`);
+    }
+    assert.match(html, new RegExp(`class="site (theme|style)-${theme}`));
     assert.match(html, /id="services"/);
+    assert.match(html, /data-section="services"/);
+    assert.match(html, /我也要一个 →/);
   }
   await withApp({}, async ({ base }) => {
     const created = await api(base, "POST", "/api/sessions", { body: { mode: "import" } });
@@ -480,10 +491,13 @@ test("空数据目录启动时种入示例网站阿岚", async () => {
     assert.match(html, /示例/);
     assert.match(html, /海景双人房/);
     assert.match(html, /380/);
-    assert.match(html, /theme-editorial/);
+    assert.match(html, /style-slowhouse/);
+    assert.match(html, /src="\/img\/hero-seaside\.webp"/, "示例使用仓库自带的首图");
+    assert.match(html, /<link rel="preload" as="image" href="\/img\/hero-seaside\.webp"/, "首图预加载，缩短最大内容绘制时间");
     const profile = await (await fetch(`${base}/u/${encodeURIComponent("阿岚")}/profile.json`)).json();
     assert.equal(profile.name, "阿岚");
-    assert.equal(profile.theme, "editorial");
+    assert.equal(profile.theme, "slowhouse");
+    assert.equal(profile.media.hero.url, "/img/hero-seaside.webp");
 
     const store = createStore(dataDir);
     const kept = store.getSite("林可");
@@ -508,7 +522,7 @@ test("空数据目录启动时种入示例网站阿岚", async () => {
     assert.match(aliasHtml, /阿岚/);
     assert.match(aliasHtml, /示例/);
     assert.match(aliasHtml, /海景双人房/);
-    assert.match(aliasHtml, /theme-editorial/);
+    assert.match(aliasHtml, /style-slowhouse/);
     const aliasProfile = await (await fetch(`${base}/u/alan/profile.json`)).json();
     assert.equal(aliasProfile.name, "阿岚");
     assert.equal(aliasProfile.slug, "阿岚");
