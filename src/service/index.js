@@ -591,19 +591,29 @@ function createService(store, config) {
     };
   }
 
+  // 发现页：既支持「民宿 摄影」这样的关键词，也支持「惠州做民宿摄影的人」这样的一句话。
+  // 一句话会先去掉「想找、做、的人」这类虚词，再按已发布网站里出现过的词切开；切不出来就原样当关键词。
+  // 每位结果都附上「为什么匹配」，空结果如实返回，不编造。
   function discover(query) {
-    const q = String(query || "").trim().toLowerCase();
+    const raw = String(query || "").trim().slice(0, 60);
     const sites = store.listSites();
-    const terms = q ? q.split(/\s+/).filter(Boolean) : [];
-    const results = sites
-      .filter((site) => {
-        if (!terms.length) return true;
-        const blob = searchBlob(site).toLowerCase();
-        return terms.every((term) => blob.includes(term));
+    const indexed = sites.map((site) => ({ site, fields: searchFields(site) }));
+    const terms = parseQuery(raw, vocabularyOf(indexed));
+    const results = indexed
+      .map(({ site, fields }) => {
+        if (!terms.length) return { site, matched: [] };
+        const matched = [];
+        for (const term of terms) {
+          const field = FIELD_ORDER.find((name) => fields[name].includes(term));
+          if (!field) return null;
+          matched.push({ term, field: FIELD_LABELS[field] });
+        }
+        return { site, matched };
       })
-      .map((site) => cardOf(site))
+      .filter(Boolean)
+      .map(({ site, matched }) => ({ ...cardOf(site), matched }))
       .sort((a, b) => b.updatedAt - a.updatedAt);
-    return { query: q, results, empty: results.length === 0 };
+    return { query: raw.toLowerCase(), terms, results, empty: results.length === 0, total: sites.length };
   }
 
   function recordVisit(slug) {
@@ -677,20 +687,64 @@ function labelOf(topic) {
   return ({ who: "你是谁", offer: "能提供什么", work: "经历与作品", story: "你的故事", seek: "联系与寻找", style: "网站风格" })[topic] || topic;
 }
 
-function searchBlob(site) {
+const FIELD_ORDER = ["name", "city", "title", "tags", "services", "seeking", "about"];
+const FIELD_LABELS = { name: "名字", city: "城市", title: "身份", tags: "标签", services: "服务", seeking: "TA 在找", about: "介绍" };
+const QUERY_FILLERS = /想找|想认识|我想|我要|在找|寻找|帮我|找一?个|找一?位|有没有|会做|做|搞|的人|的|一个|一位|吗|呢|吧/g;
+
+function searchFields(site) {
   const profile = normalizeProfile(site.profile);
-  return [
-    profile.name,
-    profile.title,
-    profile.tagline,
-    profile.city,
-    profile.about,
-    profile.story,
-    profile.tags.join(" "),
-    profile.services.map((item) => `${item.name} ${item.description} ${item.price}`).join(" "),
-    profile.seeking.map((item) => item.who).join(" "),
-    profile.highlights.map((item) => `${item.title} ${item.description}`).join(" "),
-  ].join("\n");
+  const low = (value) => String(value || "").toLowerCase();
+  return {
+    name: low(profile.name),
+    city: low(profile.city),
+    title: low(profile.title),
+    tags: low(profile.tags.join(" ")),
+    services: low(profile.services.map((item) => `${item.name} ${item.description} ${item.price}`).join(" ")),
+    seeking: low(profile.seeking.map((item) => `${item.who} ${item.description}`).join(" ")),
+    about: low([profile.tagline, profile.about, profile.story, profile.highlights.map((item) => `${item.title} ${item.description}`).join(" ")].join(" ")),
+  };
+}
+
+// 词表：已发布网站里的城市、标签、身份和服务名（以及它们的前两个字，便于「惠州双月湾」也能被「惠州」切出来）。
+function vocabularyOf(indexed) {
+  const words = new Set();
+  const add = (value) => {
+    const word = String(value || "").trim().toLowerCase();
+    if (Array.from(word).length < 2) return;
+    words.add(word);
+    if (/^[\u4e00-\u9fa5]{3,}$/.test(word)) words.add(Array.from(word).slice(0, 2).join(""));
+  };
+  for (const { site } of indexed) {
+    const profile = normalizeProfile(site.profile);
+    add(profile.city);
+    add(profile.title);
+    profile.tags.forEach(add);
+    profile.services.forEach((item) => add(item.name));
+  }
+  return [...words].sort((a, b) => b.length - a.length);
+}
+
+function parseQuery(raw, vocabulary) {
+  const terms = [];
+  for (const piece of String(raw || "").toLowerCase().split(/[\s,，、。;；/|]+/).filter(Boolean)) {
+    const cleaned = piece.replace(QUERY_FILLERS, " ").trim();
+    if (!cleaned) continue;
+    for (const chunk of cleaned.split(/\s+/)) {
+      // 一段连在一起的中文：按词表从长到短切；切不出任何词就整段当关键词。
+      let rest = chunk;
+      const found = [];
+      for (const word of vocabulary) {
+        if (rest.includes(word)) {
+          found.push(word);
+          rest = rest.split(word).join(" ");
+        }
+      }
+      const leftovers = rest.split(/\s+/).filter((item) => Array.from(item).length >= 2);
+      const parts = found.length ? [...found, ...leftovers] : [chunk];
+      for (const term of parts) if (!terms.includes(term)) terms.push(term);
+    }
+  }
+  return terms.slice(0, 6);
 }
 
 function cardOf(site) {
@@ -703,6 +757,7 @@ function cardOf(site) {
     city: profile.city,
     tags: profile.tags.slice(0, 4),
     services: profile.services.slice(0, 2).map((item) => ({ name: item.name, price: item.price })),
+    seeking: profile.seeking.slice(0, 2).map((item) => item.who).filter(Boolean),
     example: !!site.example,
     theme: profile.theme,
     updatedAt: site.updatedAt || site.publishedAt || 0,

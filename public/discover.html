@@ -4,56 +4,64 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>发现 · 憩梦时光</title>
-  <meta name="theme-color" content="#A9532F">
+  <meta name="description" content="说一句话找人：按城市、身份、服务和正在寻找的合作，找到已经发布个人网站的人。">
+  <meta name="theme-color" content="#F6F0E6">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/extend.css">
+  <script src="/ui-init.js"></script>
 </head>
 <body class="discover-page">
   <a class="skip" href="#q">跳到搜索</a>
-  <div class="cursor-glow" aria-hidden="true"></div>
   <header class="topbar">
     <div class="wrap">
       <a class="wordmark" href="/"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6" fill="#A9532F"/><circle cx="12" cy="8.2" r="1.5" fill="#FFFFFF"/><path d="M6 14.5c2.2-3.2 4-4.8 6-4.8s3.8 1.6 6 4.8" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16.8h10" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round"/></svg>憩梦时光</a>
       <nav class="nav" aria-label="主导航">
-        <a href="/">首页</a>
+        <a class="nav-optional" href="/">首页</a>
         <a href="/discover.html" aria-current="page">发现</a>
+        <a class="primary btn-sm" href="/">做我的网站</a>
       </nav>
     </div>
   </header>
-  <section class="page-band">
-    <div class="wrap">
-      <p class="eyebrow" data-reveal>AI 时代人找人</p>
-      <h1 class="display-sm" data-reveal style="--i:1">发现</h1>
-      <p class="lede" data-reveal style="--i:2">AI 时代人找人：按关键词找到已经发布的人。这里只列出真实发布的网站，不会编造；每个人也都有给 AI 读的 profile.json。</p>
-    </div>
-  </section>
-  <main class="wrap discover">
-    <form id="search-form" class="panel search-panel">
-      <label for="q">关键词</label>
-      <div class="composer">
-        <input id="q" name="q" type="search" placeholder="例如：民宿、摄影、双月湾" maxlength="40">
-        <button class="primary" id="search" type="submit"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="5.5"/><path d="M15.5 15.5L20 20"/></svg>搜索</button>
+
+  <main>
+    <section class="discover-top">
+      <div class="wrap">
+        <p class="kicker" data-reveal>人找人，</p>
+        <h1 class="discover-title" data-reveal style="--i:1">找一个人，而不是一个页面<svg class="brush" viewBox="0 0 190 14" preserveAspectRatio="none" aria-hidden="true" focusable="false"><path d="M2 5.9 C20.1 5 33.7 5.8 47.3 7.1 C65.5 7.6 79.1 3.7 92.7 5.1 C110.8 4.9 124.4 4.3 138 4.2 C156 4.6 172 6 188 5.4"/></svg></h1>
+        <p class="discover-lede" data-reveal style="--i:2">说一句话就行，比如「惠州做民宿的人」。这里只列出真实发布的网站，没有结果就如实告诉你，不会编造。</p>
+        <form class="search" id="search-form" role="search">
+          <div class="search-field">
+            <label for="q" class="sr-only">说说你想找什么样的人（关键词）</label>
+            <svg class="icon icon-24" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="5.5"/><path d="M15.5 15.5L20 20"/></svg>
+            <input id="q" name="q" type="search" placeholder="例如：惠州做民宿的人" maxlength="60" autocomplete="off">
+          </div>
+          <button class="primary btn-lg" id="search" type="submit">找人</button>
+        </form>
+        <div class="suggest" id="suggest" role="group" aria-label="试试这些">试试：
+          <button type="button" class="chip" data-q="民宿">民宿</button>
+          <button type="button" class="chip" data-q="惠州 摄影">惠州 摄影</button>
+          <button type="button" class="chip" data-q="想找双月湾的民宿主理人">想找双月湾的民宿主理人</button>
+        </div>
+        <p class="understood" id="understood" aria-live="polite"></p>
       </div>
-      <div class="suggest" id="suggest" aria-label="试试这些词">
-        <button type="button" class="chip" data-q="民宿">民宿</button>
-        <button type="button" class="chip" data-q="摄影">摄影</button>
-        <button type="button" class="chip" data-q="双月湾">双月湾</button>
-      </div>
-    </form>
-    <p class="result-count" id="result-count" role="status"></p>
-    <div id="results" class="result-list discover-results"></div>
-    <p id="empty" class="empty-state hidden"></p>
+    </section>
+
+    <section class="wrap" aria-labelledby="result-count">
+      <div class="result-meta"><p id="result-count" role="status"></p></div>
+      <div class="people" id="results"></div>
+      <div id="empty" class="hidden"></div>
+    </section>
   </main>
+
   <footer class="app-footer">
     <div class="wrap">
-      <p class="brand-lockup"><svg class="mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6" fill="#A9532F"/><circle cx="12" cy="8.2" r="1.5" fill="#FFFFFF"/><path d="M6 14.5c2.2-3.2 4-4.8 6-4.8s3.8 1.6 6 4.8" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/><path d="M7 16.8h10" fill="none" stroke="#FFFFFF" stroke-width="1.75" stroke-linecap="round"/></svg><span><span class="mother">憩梦</span> · 憩梦时光</span></p>
-      <p class="notice" id="model-notice"></p>
+      <p class="brand-lockup"><span class="seal" aria-hidden="true"></span><span>憩梦 · 憩梦时光</span></p>
+      <p class="notice"><span id="model-notice"></span> 标有「示例」的是演示数据，不是已核验的真实用户。</p>
     </div>
   </footer>
   <script src="/icons.js"></script>
   <script src="/motion.js"></script>
-  <script src="/fx.js"></script>
   <script src="/discover.js"></script>
 </body>
 </html>
