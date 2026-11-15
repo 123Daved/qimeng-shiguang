@@ -36,6 +36,17 @@ const SECTION_LABELS = {
   contacts: "联系方式",
 };
 
+// 点选版块修改时，这个版块允许改动的档案字段。其余字段一律保持原样（服务端强制，不依赖提示词）。
+const SECTION_FIELDS = {
+  hero: ["name", "title", "tagline", "city", "tags"],
+  about: ["about"],
+  services: ["services"],
+  highlights: ["highlights"],
+  story: ["story"],
+  seeking: ["seeking"],
+  contacts: ["contacts"],
+};
+
 const COMPLETE_LINE = "六个话题都聊到了。说「生成网站」，我就按你说过的事实整理成网页。";
 
 function fail(status, message) {
@@ -249,7 +260,7 @@ function createService(store, config) {
     const channel = input?.via === "voice" ? "voice" : "text";
     if (!text) throw fail(400, "请先说点什么，或者写下你的回答。");
     if (text.length > 4000) throw fail(400, "这段回答太长了，请收在 4000 字以内。");
-    const section = SECTION_LABELS[input?.section] ? input.section : "";
+    const section = typeof input?.section === "string" && Object.hasOwn(SECTION_LABELS, input.section) ? input.section : "";
     const intent = classifyUtterance(text, {
       hasProfile: !!session.profile,
       complete: !firstMissingTopic(session.coverage),
@@ -434,14 +445,24 @@ function createService(store, config) {
     return { ...ownerSession(session), source: agent.source, fallback: !!agent.fallback, changed: session.lastChanged };
   }
 
-  async function editProfile(id, token, instruction) {
+  async function editProfile(id, token, instruction, section) {
     const session = requireSession(id, token);
     const text = String(instruction || "").trim();
     if (!text) throw fail(400, "请用一句话说明要改什么。");
+    if (text.length > 600) throw fail(400, "修改指令请收在 600 字以内。");
     if (!session.profile) throw fail(400, "请先生成网站，再做修改。");
+    const scope = typeof section === "string" && Object.hasOwn(SECTION_FIELDS, section) ? section : "";
     const before = normalizeProfile(session.profile);
     const agent = await runAgent("edit", { profile: before, instruction: text }, config);
     const guarded = applyEdit(before, stripPrivateNotes(normalizeProfile(agent.profile), session.imports), text);
+    if (scope) {
+      // 只保留被点选版块的改动；模型或规则改到别处的，全部还原。
+      const allowed = new Set(SECTION_FIELDS[scope]);
+      const kept = normalizeProfile(before);
+      for (const field of allowed) kept[field] = guarded.profile[field];
+      guarded.profile = kept;
+      guarded.changed = guarded.changed.filter((field) => allowed.has(field));
+    }
     session.profile = guarded.profile;
     session.lastChanged = guarded.changed;
     session.lastSource = agent.source;
@@ -449,7 +470,7 @@ function createService(store, config) {
     session.updatedAt = Date.now();
     if (session.slug) syncSite(session);
     store.saveSession(session);
-    store.addEvent({ type: "edit_submit", sessionId: id, intent: guarded.intent, changed: guarded.changed });
+    store.addEvent({ type: "edit_submit", sessionId: id, intent: guarded.intent, changed: guarded.changed, section: scope });
     if (agent.fallback) store.addEvent({ type: "llm_fallback", agent: "edit", sessionId: id });
     return { ...ownerSession(session), source: agent.source, fallback: !!agent.fallback, changed: guarded.changed, calls: 1 };
   }
@@ -688,4 +709,4 @@ function cardOf(site) {
   };
 }
 
-module.exports = { createService, isVague, oneQuestion, countQuestions, TOPIC_IDS, FOLLOWUP_MAX, SECTION_LABELS };
+module.exports = { createService, isVague, oneQuestion, countQuestions, TOPIC_IDS, FOLLOWUP_MAX, SECTION_LABELS, SECTION_FIELDS };

@@ -51,7 +51,8 @@ function classifyUtterance(raw, ctx = {}) {
   // 已经生成网站：点选了区块、或六个话题已聊完、或这句话明显是修改 → 一句话修改
   if (ctx.hasProfile) {
     const theme = text.length <= COMMAND_MAX ? themeOf(text) : "";
-    if (theme && !ctx.section) return { kind: "edit", instruction: `风格换成${theme}` };
+    // 换风格是整站的事：即使点选了某个版块，也按整站换风格处理。
+    if (theme) return { kind: "edit", instruction: `风格换成${theme}` };
     const original = String(raw || "").trim();
     if (ctx.section) {
       const label = ctx.sectionLabel || ctx.section;

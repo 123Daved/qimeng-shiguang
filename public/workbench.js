@@ -540,12 +540,12 @@ function updatePreview(next, changed) {
   if (next.profile) {
     setBadge(next.published ? "已发布 · 修改会同步" : "AI 已生成", true);
     loadPreview(previewUrl(next, changed || []));
-    if (next.profile.name) $("#preview-url").textContent = `qimeng-shiguang.onrender.com/u/${next.slug || next.profile.name}`;
+    if (next.profile.name) $("#preview-url").textContent = `${location.host}/u/${next.slug || next.profile.name}`;
     state.filled = new Set(filled);
     return;
   }
   setBadge("实时草稿", false);
-  $("#preview-url").textContent = `qimeng-shiguang.onrender.com/u/${(next.draft && next.draft.name) || "你的名字"}`;
+  $("#preview-url").textContent = `${location.host}/u/${(next.draft && next.draft.name) || "你的名字"}`;
   const before = state.filled;
   const fresh = before ? filled.filter((name) => !before.has(name)) : [];
   state.filled = new Set(filled);
@@ -878,8 +878,8 @@ async function runAction(action) {
     const spoken = action.instruction.replace(/^只修改「.+?」这一版块，其他版块保持原样：/, "");
     $("#instruction").value = spoken;
     const picked = state.picked;
-    await applyInstruction(action.instruction, null, picked ? `「${picked.label}」${spoken}` : spoken);
-    if (picked) { logEvent("block_pick_edit"); clearPick(); }
+    await applyInstruction(action.instruction, null, picked && action.section ? `「${picked.label}」${spoken}` : spoken, action.section || "");
+    if (picked) { if (action.section) logEvent("block_pick_edit"); clearPick(); }
   }
   return undefined;
 }
@@ -931,7 +931,7 @@ const runGenerate = withBusy($("#generate"), "生成中", async () => {
   }
 });
 
-async function applyInstruction(instruction, button, shown) {
+async function applyInstruction(instruction, button, shown, section) {
   const text = String(instruction || "").trim();
   if (!text) return;
   const label = shown || text;
@@ -939,7 +939,7 @@ async function applyInstruction(instruction, button, shown) {
     const data = await api(`/api/sessions/${encodeURIComponent(sid)}/edits`, {
       method: "POST",
       headers: headers(),
-      body: JSON.stringify({ instruction: text }),
+      body: JSON.stringify({ instruction: text, section: section || "" }),
     });
     const changed = (data.changed || []).map((name) => (name === "theme" || name === "accent" || name === "name" ? "hero" : name));
     await renderSession(data, { changed: [...new Set(changed)] });

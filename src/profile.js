@@ -11,13 +11,14 @@ const TOPICS = [
 
 const TOPIC_IDS = TOPICS.map((topic) => topic.id);
 
-const THEMES = {
+// 无原型对象：用户或模型给出的 "__proto__"、"constructor" 之类的值不会被当成合法主题。
+const THEMES = Object.assign(Object.create(null), {
   warm: { id: "warm", label: "温暖", accent: "#A9532F" },
   simple: { id: "simple", label: "简约", accent: "#924526" },
   ink: { id: "ink", label: "墨色", accent: "#7C3B22" },
   cinema: { id: "cinema", label: "光影", accent: "#A9532F" },
   editorial: { id: "editorial", label: "杂志", accent: "#924526" },
-};
+});
 
 function blankContacts() {
   return { wechat: "", email: "", phone: "", xiaohongshu: "", douyin: "", website: "" };

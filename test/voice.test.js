@@ -333,6 +333,11 @@ test("生成、发布、修改由前端接着执行：流式回合只下发动�
     assert.match(scoped.pick("action")[0].instruction, /只修改「我能提供」/);
     const evil = await turn(base, id, token, { text: "价格写清楚一点", section: "<script>" });
     assert.equal(evil.pick("action")[0].section, "", "不认识的区块名会被忽略");
+    for (const bad of ["__proto__", "constructor", "toString"]) {
+      const proto = await turn(base, id, token, { text: "价格写清楚一点", section: bad });
+      assert.equal(proto.status, 200, `section=${bad} 不能让服务出错`);
+      assert.equal(proto.pick("action")[0].section, "");
+    }
     const publish = await turn(base, id, token, { text: "发布" });
     assert.deepEqual(publish.pick("action")[0], { action: "publish" });
     assert.equal((await api(base, "GET", `/api/sessions/${id}`, { token })).json.messages.length, count);
