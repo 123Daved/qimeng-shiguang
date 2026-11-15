@@ -187,6 +187,7 @@ async function handle(req, res, ctx) {
     if (method === "POST" && parts[3] === "messages") return sendJson(res, 200, await gate(id, () => ctx.service.sendMessage(id, auth, body.text, body.via)));
     if (method === "POST" && parts[3] === "imports") return sendJson(res, 200, await gate(id, () => ctx.service.addImport(id, auth, body.text, body.kind)));
     if (method === "POST" && parts[3] === "profile") return sendJson(res, 200, await gate(id, () => ctx.service.generateProfile(id, auth)));
+    if (method === "POST" && parts[3] === "media") return sendJson(res, 200, await gate(id, () => ctx.service.setMedia(id, auth, body)));
     if (method === "POST" && parts[3] === "edits") return sendJson(res, 200, await gate(id, () => ctx.service.editProfile(id, auth, body.instruction, body.section)));
     if (method === "POST" && parts[3] === "publish") return sendJson(res, 200, await gate(id, () => ctx.service.publish(id, auth, body.slug, originOf(req, ctx.config))));
     return sendJson(res, 404, { error: "没有这个接口。" });
@@ -248,7 +249,7 @@ function rateLimitFor(method, pathname) {
   if (pathname === "/api/events") return "event";
   if (pathname === "/api/asr" || pathname === "/api/tts") return "voice";
   if (/^\/api\/sites\/[^/]+\/ask$/.test(pathname)) return "ask";
-  if (/^\/api\/sessions\/[^/]+\/(turns|messages|imports|profile|edits)$/.test(pathname)) return "llm";
+  if (/^\/api\/sessions\/[^/]+\/(turns|messages|imports|profile|edits|media)$/.test(pathname)) return "llm";
   return "";
 }
 

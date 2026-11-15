@@ -15,6 +15,8 @@ const {
   extractProfileFromText,
   applyEdit,
   inferTheme,
+  cleanImageUrl,
+  cleanMedia,
   DEMO_IMPORT,
   TOPIC_IDS,
 } = require("../profile");
@@ -475,6 +477,28 @@ function createService(store, config) {
     return { ...ownerSession(session), source: agent.source, fallback: !!agent.fallback, changed: guarded.changed, calls: 1 };
   }
 
+  // 设置网站图片：首图 + 最多 6 张图集。只接受 https 地址或本站 /img/ 图片；
+  // 有任何一张地址不合格就整体拒绝并说明原因，不悄悄丢掉。
+  function setMedia(id, token, input) {
+    const session = requireSession(id, token);
+    if (!session.profile) throw fail(400, "请先生成网站，再设置图片。");
+    const src = input && typeof input === "object" ? input : {};
+    const heroUrl = String(src.hero?.url || "").trim();
+    const gallery = (Array.isArray(src.gallery) ? src.gallery : []).map((item) => ({ url: String(item?.url || "").trim(), alt: item?.alt, caption: item?.caption })).filter((item) => item.url);
+    if (gallery.length > 6) throw fail(400, "图集最多 6 张。");
+    const bad = [heroUrl, ...gallery.map((item) => item.url)].filter((url) => url && !cleanImageUrl(url));
+    if (bad.length) throw fail(400, `这些图片地址用不了：${bad.slice(0, 3).join("、").slice(0, 160)}。只支持 https:// 开头的图片地址。`);
+    const before = JSON.stringify(normalizeProfile(session.profile).media);
+    session.profile = normalizeProfile({ ...session.profile, media: cleanMedia({ hero: heroUrl ? { url: heroUrl, alt: src.hero?.alt } : null, gallery }) });
+    const changed = JSON.stringify(session.profile.media) !== before;
+    session.lastChanged = changed ? ["media", "hero"] : [];
+    session.updatedAt = Date.now();
+    if (session.slug) syncSite(session);
+    store.saveSession(session);
+    store.addEvent({ type: "media_update", sessionId: id, hero: !!session.profile.media.hero, gallery: session.profile.media.gallery.length });
+    return { ...ownerSession(session), changed: session.lastChanged };
+  }
+
   function allocateSlug(desired, sessionId) {
     const base = slugFromName(desired);
     let slug = base;
@@ -650,6 +674,7 @@ function createService(store, config) {
     addImport,
     generateProfile,
     editProfile,
+    setMedia,
     publish,
     ask,
     discover,

@@ -175,6 +175,7 @@ iframe.preview[hidden] { display: none; }
 .import-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .import-grid textarea { min-height: 150px; }
 .edit-link { margin-top: 16px; font-size: 14px; }
+.media-gap { margin-top: 12px; }
 
 .theme-picks { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; }
 .theme-thumb { display: flex; flex-direction: column; gap: 6px; min-height: 44px; padding: 6px; border: 1px solid var(--qm-line); border-radius: var(--qd-radius-control); background: #FFFFFF; cursor: pointer; text-align: left; transition: border-color var(--qm-dur-2), transform var(--qm-dur-2); }

@@ -19,15 +19,15 @@ const TOPICS = [
 ];
 
 const THEME_OPTIONS = [
-  ["warm", "温暖", "风格换成温暖"],
+  ["slowhouse", "慢屋", "风格换成慢屋"],
+  ["papermountain", "纸山", "风格换成纸山"],
+  ["sticker", "贴纸", "风格换成贴纸"],
   ["simple", "简约", "风格换成简约"],
   ["ink", "墨色", "风格换成墨色"],
-  ["cinema", "光影", "风格换成光影"],
-  ["editorial", "杂志", "风格换成杂志"],
 ];
 const THEME_LABEL = Object.fromEntries(THEME_OPTIONS.map(([id, label]) => [id, label]));
 
-const EDIT_CHIPS = ["换成光影风格", "换成杂志风格", "把价格写清楚", "简介写得更短一些"];
+const EDIT_CHIPS = ["换成纸山风格", "换成贴纸风格", "把价格写清楚", "简介写得更短一些"];
 
 const SECTION_LABEL = {
   hero: "名字与身份",
@@ -506,8 +506,21 @@ function renderProfile(profile) {
     field("我能提供", services),
     field("我在寻找", seeking),
     field("故事", profile.story),
-    field("主题", `${THEME_LABEL[profile.theme] || "温暖"} ${profile.accent || ""}`.trim()),
+    field("主题", `${THEME_LABEL[profile.theme] || "慢屋"} ${profile.accent || ""}`.trim()),
   );
+}
+
+function renderMedia(profile) {
+  const form = $("#media-form");
+  if (!form) return;
+  const media = (profile && profile.media) || { hero: null, gallery: [] };
+  const disabled = !profile || state.busy;
+  form.querySelectorAll("input, textarea, button").forEach((node) => { node.disabled = disabled; });
+  // 用户正在输入时不覆盖
+  if (form.contains(document.activeElement)) return;
+  $("#media-hero").value = (media.hero && media.hero.url) || "";
+  $("#media-hero-alt").value = (media.hero && media.hero.alt) || "";
+  $("#media-gallery").value = (media.gallery || []).map((item) => item.url).join("\n");
 }
 
 function renderThemes(profile) {
@@ -615,6 +628,7 @@ function renderSession(next, opts) {
   renderChat(next.messages || []);
   renderRecaps(next);
   renderProfile(next.profile);
+  renderMedia(next.profile);
   renderThemes(next.profile);
   renderChips(next.profile);
   if (next.demo) showBanner("示例 / 演示：这是预置的双月湾民宿主理人阿岚，不是已核验的真实用户。六个话题已齐，可以直接生成。", "warn");
@@ -846,7 +860,7 @@ const runGenerate = withBusy($("#generate"), "生成中", async () => {
     addBuild(["hero", "services", "highlights", "story", "contacts"]);
     await renderSession(data, { changed: ["hero", "services"] });
     setStage("done", "网站已生成，可以换风格、修改或发布");
-    typeQuestion("网站做好了。点预览里的任意一块，说一句话就能改；也可以说「换成光影风格」或「发布」。");
+    typeQuestion("网站做好了。点预览里的任意一块，说一句话就能改；也可以说「换成纸山风格」或「发布」。");
     say(`网站生成好了。${data.profile && data.profile.name ? `${data.profile.name}，` : ""}你可以点一下预览里的任意一块来修改，或者说发布。`);
   } finally {
     previewFrame.classList.remove("is-loading");
@@ -1185,6 +1199,20 @@ $("#edit-form").addEventListener("submit", (event) => {
   applyInstruction($("#instruction").value, $("#edit"));
 });
 $("#publish-form").addEventListener("submit", runPublish);
+$("#media-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  withBusy($("#media-save"), "保存中", async () => {
+    const gallery = $("#media-gallery").value.split(/\s*\n\s*/).map((url) => url.trim()).filter(Boolean).map((url) => ({ url }));
+    const heroUrl = $("#media-hero").value.trim();
+    const data = await api(`/api/sessions/${encodeURIComponent(sid)}/media`, {
+      method: "POST",
+      headers: headers(),
+      body: JSON.stringify({ hero: heroUrl ? { url: heroUrl, alt: $("#media-hero-alt").value.trim() } : null, gallery }),
+    });
+    $("#media-state").textContent = "已保存";
+    await renderSession(data, { changed: ["hero"] });
+  })();
+});
 $("#copy-prompt").addEventListener("click", async () => {
   const text = $("#import-prompt").value;
   const copyState = $("#copy-state");

@@ -74,7 +74,8 @@ test("三个产品页面：没有内联可执行脚本，有唯一 h1、可见�
     assert.match(home, /开始制作/);
     assert.match(home, /一键体验示例/);
     assert.match(home, /示例数据/, "示例入口必须标注示例数据");
-    for (const theme of ["warm", "simple", "ink", "cinema", "editorial"]) assert.match(home, new RegExp(`href="/u/alan\\?theme=${theme}"`));
+    for (const theme of ["slowhouse", "papermountain", "sticker", "simple", "ink"]) assert.match(home, new RegExp(`href="/u/alan\\?theme=${theme}"`));
+    for (const old of ["warm", "cinema", "editorial"]) assert.equal(home.includes(`?theme=${old}`), false, "首页不再链接旧主题名");
     const workbench = await (await fetch(`${base}/workbench.html`)).text();
     assert.match(workbench, /<meta name="robots" content="noindex">/, "编辑页不应被搜索引擎收录");
     for (const id of ["mic", "question", "transcript", "recaps", "progress", "pick-chip", "answer", "generate", "preview", "preview-b", "theme-picks", "publish-form", "import-text"]) {
@@ -94,4 +95,50 @@ test("设计系统：品牌 V2.0 语义色数值不变，产品样式不使用�
     assert.equal(/radial-gradient|blur\(/.test(text), false, `${file} 不应使用光晕或模糊`);
     assert.equal(/font-size:\s*1[0-3]px/.test(text), false, `${file} 不应出现小于 14px 的字号`);
   }
+});
+
+test("网站图片：只接受 https 与本站图片，非法地址整体拒绝，发布后同步，档案里公开", async () => {
+  await withApp(async ({ base }) => {
+    const call = async (method, pathname, token, body) => {
+      const response = await fetch(`${base}${pathname}`, { method, headers: { "Content-Type": "application/json", ...(token ? { "X-Edit-Token": token } : {}) }, body: body === undefined ? undefined : JSON.stringify(body) });
+      return { status: response.status, json: await response.json().catch(() => null) };
+    };
+    const created = await call("POST", "/api/sessions", null, { mode: "demo" });
+    const { id, editToken } = created.json;
+    const early = await call("POST", `/api/sessions/${id}/media`, editToken, { hero: { url: "https://example.com/a.jpg" } });
+    assert.equal(early.status, 400, "生成之前不能设置图片");
+    await call("POST", `/api/sessions/${id}/profile`, editToken);
+    const published = await call("POST", `/api/sessions/${id}/publish`, editToken, {});
+    const url = published.json.url;
+
+    for (const bad of ["javascript:alert(1)", "http://example.com/a.jpg", "data:image/png;base64,AAAA", "/img/../data/sessions.json", "https://example.com/a.jpg\" onerror=\"x", "//evil.com/a.jpg"]) {
+      const res = await call("POST", `/api/sessions/${id}/media`, editToken, { hero: { url: bad } });
+      assert.equal(res.status, 400, `应拒绝：${bad}`);
+      assert.match(res.json.error, /只支持 https/);
+    }
+    const mixed = await call("POST", `/api/sessions/${id}/media`, editToken, { hero: { url: "https://example.com/ok.jpg" }, gallery: [{ url: "https://example.com/1.jpg" }, { url: "javascript:1" }] });
+    assert.equal(mixed.status, 400, "有一张不合格就整体拒绝，不悄悄丢掉");
+    const tooMany = await call("POST", `/api/sessions/${id}/media`, editToken, { gallery: Array.from({ length: 7 }, (_, i) => ({ url: `https://example.com/${i}.jpg` })) });
+    assert.equal(tooMany.status, 400);
+    const denied = await call("POST", `/api/sessions/${id}/media`, "wrong", { hero: { url: "https://example.com/a.jpg" } });
+    assert.equal(denied.status, 401);
+
+    const ok = await call("POST", `/api/sessions/${id}/media`, editToken, { hero: { url: "https://example.com/cover.jpg", alt: "<b>门口</b>" }, gallery: [{ url: "https://example.com/1.jpg" }, { url: "/img/story-craft.jpg" }] });
+    assert.equal(ok.status, 200);
+    assert.deepEqual(ok.json.changed, ["media", "hero"]);
+    assert.equal(ok.json.profile.media.hero.url, "https://example.com/cover.jpg");
+    assert.equal(ok.json.profile.media.gallery.length, 2);
+    const page = await (await fetch(`${base}${url}`)).text();
+    assert.match(page, /src="https:\/\/example\.com\/cover\.jpg"/, "已发布网站同步新首图");
+    assert.match(page, /referrerpolicy="no-referrer"/);
+    assert.equal(page.includes("<b>门口</b>"), false);
+    assert.match(page, /&lt;b&gt;门口&lt;\/b&gt;/);
+    const profile = await (await fetch(`${base}${url}/profile.json`)).json();
+    assert.equal(profile.media.hero.url, "https://example.com/cover.jpg");
+
+    const cleared = await call("POST", `/api/sessions/${id}/media`, editToken, { hero: null, gallery: [] });
+    assert.equal(cleared.json.profile.media.hero, null);
+    const fallback = await (await fetch(`${base}${url}`)).text();
+    assert.equal(fallback.includes("example.com/cover.jpg"), false, "清空后改用风格插画");
+  });
 });
