@@ -42,8 +42,9 @@
       this.io = new root.IntersectionObserver((entries) => { self.visible = entries[entries.length - 1].isIntersecting; });
       this.io.observe(canvas);
     }
-    if (this.reduce) this.draw();
-    else this.raf = root.requestAnimationFrame(this._loop);
+    // 先画一帧：即使创建时不在屏幕上，滚到这里也不会看到空白。
+    this.draw();
+    if (!this.reduce) this.raf = root.requestAnimationFrame(this._loop);
   }
 
   Orb.prototype.resize = function (size) {

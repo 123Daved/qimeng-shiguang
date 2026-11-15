@@ -27,21 +27,25 @@
 .mini-body strong { font-family: var(--qm-font-display); font-weight: 600; font-size: 20px; color: var(--qm-ink); letter-spacing: .04em; }
 .mini-body em { font-style: normal; color: var(--qm-brush); font-weight: 600; }
 .mini-cap { padding: 4px 6px 2px; font-family: var(--qm-font-hand); font-size: 18px; color: var(--qm-ink); }
-.mini-warm { left: 0; top: 4%; width: 74%; transform: rotate(-2deg); z-index: 2; }
-.mini-warm picture { flex: none; aspect-ratio: 16 / 8.6; }
-.mini-warm:hover { transform: rotate(0) translateY(-6px); }
-.mini-editorial { right: 0; top: 30%; width: 40%; height: 46%; transform: rotate(2.2deg); z-index: 3; background: #FFFFFF; border-color: #1F1B19; padding: 14px; }
-.mini-editorial:hover { transform: rotate(0) translateY(-6px); }
-.mini-editorial .mini-no { font-family: var(--qm-font-display); font-size: 44px; line-height: 1; color: #1F1B19; border-bottom: 3px solid #1F1B19; padding-bottom: 8px; }
-.mini-editorial .mini-body { padding: 12px 0 0; gap: 6px; flex: 1; }
-.mini-editorial .mini-body span { border-bottom: 1px solid #D8CFC4; padding-bottom: 6px; color: #2B2623; font-size: 14px; }
-.mini-editorial .mini-cap { padding: 0; }
-.mini-cinema { left: 24%; bottom: 0; width: 46%; height: 36%; transform: rotate(-1deg); z-index: 4; background: #16110E; border-color: #16110E; color: #F1E8DB; }
-.mini-cinema:hover { transform: rotate(0) translateY(-6px); color: #F1E8DB; }
-.mini-cinema picture { opacity: .62; }
-.mini-cinema .mini-body { position: absolute; left: 18px; right: 18px; bottom: 34px; color: #D9CBB9; }
-.mini-cinema .mini-body strong { color: #FFFFFF; font-size: 22px; }
-.mini-cinema .mini-cap { position: absolute; left: 18px; bottom: 8px; color: #F1E8DB; }
+.mini-slow { left: 0; top: 4%; width: 74%; transform: rotate(-2deg); z-index: 2; background: #F2EAE1; }
+.mini-slow picture { flex: none; aspect-ratio: 16 / 8.6; }
+.mini-slow .mini-body { font-family: "Songti SC", "STSong", serif; }
+.mini-slow em { font-family: var(--qm-font-hand); color: #9E3B2F; font-weight: 400; font-size: 15px; }
+.mini-slow:hover, .mini-paper:hover, .mini-sticker:hover { transform: rotate(0) translateY(-6px); }
+.mini-paper { right: 0; top: 30%; width: 40%; height: 46%; transform: rotate(2.2deg); z-index: 3; padding: 0; background: #FAF4F3; border-color: #E7DCD9; }
+.mini-band { position: relative; display: block; height: 42%; padding: 12px 14px; overflow: hidden; background: #EBDDF1; }
+.mini-band strong { position: relative; z-index: 2; font-family: var(--qm-font-display); font-weight: 900; font-size: 20px; color: #1A1716; }
+.mini-mtn, .kp-mtn { position: absolute; right: 0; bottom: 0; width: 80%; height: 64%; }
+.mini-paper .mini-body { padding: 10px 14px; gap: 6px; }
+.mini-paper .mini-body span { padding-bottom: 5px; border-bottom: 1px solid #E7DCD9; color: #1A1716; font-size: 14px; }
+.mini-crumb { color: #A9532F !important; font-weight: 700; border: 0 !important; }
+.mini-paper .mini-cap { padding: 0 14px 8px; }
+.mini-sticker { left: 12%; bottom: 0; width: 44%; height: 36%; transform: rotate(-1deg); z-index: 4; padding: 0; background: #F6BD13; border-color: #111111; color: #111111; }
+.mini-sticker .mini-body { flex: 1; justify-content: flex-end; padding: 14px 16px 4px; color: #111111; }
+.mini-sticker .mini-body small { font-size: 14px; font-weight: 700; }
+.mini-sticker .mini-body strong { font-family: "PingFang SC", "Microsoft YaHei", sans-serif; font-weight: 900; font-size: 26px; line-height: 1.08; color: #111111; letter-spacing: 0; }
+.mini-sticker .mini-cap { padding: 0 16px 10px; color: #111111; }
+.mini-cap { font-family: var(--qm-font-ui); font-size: 14px; font-weight: 700; letter-spacing: .1em; color: var(--qm-ink-2); }
 .say { position: absolute; z-index: 7; right: 2%; top: -3%; display: grid; grid-template-columns: 46px 1fr; gap: 12px; align-items: center; width: min(300px, 64%); padding: 12px 14px 12px 12px; background: var(--qm-surface); border: 1px solid var(--qm-line-strong); border-radius: var(--qd-radius-container); box-shadow: 0 12px 28px rgba(43, 38, 35, .16); }
 .say b { display: block; font-size: 14px; color: var(--qd-color-info); letter-spacing: .04em; }
 .say p { min-height: 3em; margin-top: 2px; font-size: 15px; line-height: 1.5; }
@@ -53,26 +57,32 @@
 .steps h3 { display: flex; align-items: center; gap: 10px; margin: 14px 0 8px; font-family: var(--qm-font-display); font-size: 24px; letter-spacing: .06em; }
 .steps p { color: var(--qm-ink-2); }
 
-/* ---- 五种样子：CSS 画的迷你网页缩略图 */
-.themes { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; margin: 40px 0 0; padding: 0; list-style: none; }
-.theme-card { display: flex; flex-direction: column; gap: 4px; height: 100%; padding: 12px 12px 16px; background: var(--qm-surface); border: 1px solid var(--qm-line); border-radius: var(--qd-radius-container); color: var(--qm-ink); text-decoration: none; transition: border-color var(--qm-dur-2), transform var(--qm-dur-3) var(--qm-ease); }
-.theme-card:hover { border-color: var(--qd-color-action); transform: translateY(-4px); color: var(--qm-ink); }
-.tc-page { display: flex; flex-direction: column; gap: 7px; aspect-ratio: 4 / 3.4; margin-bottom: 10px; padding: 12px; border-radius: 6px; overflow: hidden; }
-.tc-page b { font-family: var(--qm-font-display); font-size: 22px; font-weight: 600; line-height: 1.1; }
-.tc-page i { display: block; font-style: normal; }
-.tc-line { height: 6px; border-radius: 3px; background: currentColor; opacity: .22; }
-.tc-line.short { width: 60%; }
-.tc-rule { height: 2px; background: currentColor; }
-.tc-hero { height: 38%; margin: -12px -12px 4px; background: url("/img/hero-seaside.webp") center / cover, #C99A7E; }
-.tc-name { font-family: var(--qm-font-display); font-size: 20px; font-weight: 600; letter-spacing: .06em; }
-.tc-note { font-size: 14px; color: var(--qm-ink-2); line-height: 1.5; }
-.tc-warm .tc-page { background: #F8EEE7; color: #7C3B22; }
-.tc-simple .tc-page { background: #FFFFFF; color: #20352F; border: 1px solid #E5E0D8; }
-.tc-ink .tc-page { background: #EFEAE1; color: #1F1B19; }
-.tc-cinema .tc-page { background: #16110E; color: #F1E8DB; }
-.tc-cinema .tc-page b { font-size: 26px; }
-.tc-editorial .tc-page { background: #FFFFFF; color: #1F1B19; border: 2px solid #1F1B19; }
-.tc-no { font-family: var(--qm-font-display); font-size: 20px; }
+/* ---- 三种人，三种样子：CSS 画的风格缩略图 */
+.kinds { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: clamp(16px, 2vw, 28px); margin: 40px 0 0; padding: 0; list-style: none; }
+.kind { display: flex; flex-direction: column; gap: 6px; height: 100%; padding: 12px 12px 20px; background: var(--qm-surface); border: 1px solid var(--qm-line); border-radius: var(--qd-radius-container); color: var(--qm-ink); text-decoration: none; transition: border-color var(--qm-dur-2), transform var(--qm-dur-3) var(--qm-ease); }
+.kind:hover { border-color: var(--qd-color-action); transform: translateY(-4px); color: var(--qm-ink); }
+.kind-art { position: relative; display: block; aspect-ratio: 4 / 3; margin-bottom: 10px; overflow: hidden; border-radius: 6px; }
+.kind-art i { position: absolute; display: block; }
+.kind-art b { position: absolute; z-index: 3; }
+.art-slow { background: #F2EAE1; }
+.ks-sky { left: 0; top: 0; width: 36%; height: 64%; background: #295486; }
+.ks-photo { left: 36%; top: 0; right: 0; height: 64%; background: url("/img/hero-seaside.webp") center / cover, #C99A7E; }
+.ks-paper { left: 6%; right: 6%; bottom: 8%; height: 22%; background: repeating-linear-gradient(90deg, #E3D6C4 0 28%, transparent 28% 34%); opacity: .9; }
+.art-slow b { left: 7%; top: 22%; font-family: var(--qm-font-display); font-weight: 600; font-size: 26px; color: #F2EAE1; }
+.art-paper { background: #FAF4F3; }
+.kp-side { left: 0; top: 0; bottom: 0; width: 24%; background: #F6F1F1; border-right: 1px solid #E7DCD9; }
+.kp-band { left: 24%; right: 0; top: 0; height: 40%; background: #EBDDF1; }
+.kp-mtn { left: auto; width: 54%; height: 30%; top: 12%; bottom: auto; }
+.art-paper b { left: 30%; top: 50%; font-family: var(--qm-font-display); font-weight: 900; font-size: 24px; color: #1A1716; }
+.art-paper b::after { content: ""; display: block; width: 210%; height: 46px; margin-top: 8px; background: linear-gradient(90deg, #DB5932 0 33%, #EBDDF1 33% 66%, #2B2623 66%); }
+.art-sticker { background: #3B3A37; }
+.kt-photo { left: 40%; top: 0; right: 0; bottom: 0; background: url("/img/story-craft.webp") center / cover, #6B5E55; }
+.art-sticker b { left: 0; top: 0; bottom: 0; width: 40%; padding: 14px; display: flex; align-items: flex-end; background: #F6BD13; color: #111111; font-family: "PingFang SC", "Microsoft YaHei", sans-serif; font-weight: 900; font-size: 22px; line-height: 1.1; }
+.kind-who { font-size: 14px; font-weight: 600; color: var(--qm-ink-3); letter-spacing: .06em; }
+.kind-name { font-family: var(--qm-font-display); font-weight: 600; font-size: 26px; letter-spacing: .06em; }
+.kind-note { color: var(--qm-ink-2); }
+.kind-go { margin-top: auto; padding-top: 8px; font-weight: 700; color: var(--qd-color-link); }
+.kinds-more { margin-top: 18px; color: var(--qm-ink-2); }
 
 /* ---- 人找人 */
 .find-grid, .voice-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: clamp(28px, 5vw, 80px); align-items: center; }
@@ -107,14 +117,14 @@
 @media (max-width: 960px) {
   .hero-grid, .find-grid, .voice-grid { grid-template-columns: 1fr; }
   .collage { justify-self: stretch; max-width: 560px; margin: 8px auto 0; }
-  .themes { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+  .kinds { grid-template-columns: 1fr; max-width: 520px; }
 }
 @media (max-width: 640px) {
   .steps { grid-template-columns: 1fr; }
   .collage { aspect-ratio: 1 / 1.15; }
   .say { top: -5%; right: 0; width: 78%; }
   .mini-body strong { font-size: 17px; }
-  .mini-editorial .mini-no { font-size: 32px; }
+  .mini-sticker .mini-body strong { font-size: 20px; }
   .hero-cta .btn-lg, .final-cta .btn-lg { flex: 1 1 auto; }
 }
 
