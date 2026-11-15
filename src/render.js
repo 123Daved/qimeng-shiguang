@@ -277,7 +277,8 @@ function renderSite(options) {
       <label class="speak-toggle"><input type="checkbox" id="avatar-speak"> 朗读回答</label>
     </form>
   </section>
-  <script>window.__QD_SITE__=${boot};</script>
+  <script type="application/json" id="qd-site">${boot}</script>
+  <script src="/boot.js"></script>
   <script src="/motion.js"></script>
   <script src="/fx.js"></script>
   <script src="/voice.js"></script>

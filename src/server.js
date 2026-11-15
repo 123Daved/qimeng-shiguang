@@ -9,6 +9,31 @@ const { seedExampleIfEmpty } = require("./seed");
 const { renderSite, renderProfileJson, renderLlms, renderSitemap, absoluteUrl } = require("./render");
 const { resolveInside, isSafeSlug } = require("./security");
 const { providersFromEnv } = require("./voice/providers");
+const { createRateLimiter, clientOf, DEFAULT_RULES } = require("./ratelimit");
+
+// 所有响应都带的安全头。CSP 不允许内联脚本；内联样式仍需放行（个人网站用 style 属性传主题色）。
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https:",
+  "media-src 'self' blob:",
+  "connect-src 'self'",
+  "font-src 'self'",
+  "frame-src 'self'",
+  "frame-ancestors 'self'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "object-src 'none'",
+].join("; ");
+const SECURITY_HEADERS = {
+  "Content-Security-Policy": CSP,
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "SAMEORIGIN",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "microphone=(self), camera=(), geolocation=(), payment=()",
+  "Cross-Origin-Opener-Policy": "same-origin",
+};
 
 const PUBLIC_DIR = path.join(__dirname, "..", "public");
 const sessionQueues = new Map();
@@ -62,12 +87,20 @@ function createServer(options = {}) {
   const fromEnv = providersFromEnv(options.env || process.env, options.fetchImpl);
   config.asrProvider = options.asrProvider !== undefined ? options.asrProvider : fromEnv.asr;
   config.ttsProvider = options.ttsProvider !== undefined ? options.ttsProvider : fromEnv.tts;
+  // 部署在 Render 等反向代理后面时，客户端 IP 要从 X-Forwarded-For 取。
+  config.trustProxy = options.trustProxy !== undefined ? !!options.trustProxy : process.env.TRUST_PROXY === "1" || !!process.env.RENDER;
+  config.limiter = options.rateLimit === false ? null : createRateLimiter({ ...DEFAULT_RULES, ...(options.rateLimit || {}) });
   const store = createStore(config.dataDir);
   seedExampleIfEmpty(store);
   const service = createService(store, config);
 
   const server = http.createServer((req, res) => {
+    for (const [name, value] of Object.entries(SECURITY_HEADERS)) res.setHeader(name, value);
+    if (config.trustProxy && String(req.headers["x-forwarded-proto"] || "").startsWith("https")) {
+      res.setHeader("Strict-Transport-Security", "max-age=15552000");
+    }
     handle(req, res, { config, service, store }).catch((error) => {
+      if (res.headersSent) { res.end(); return; }
       const status = error.status || 500;
       const message = error.expose ? error.message : "刚才没完成，请再试一次。";
       sendJson(res, status, { error: message });
@@ -88,6 +121,15 @@ async function handle(req, res, ctx) {
   if (pathname.includes("\0")) return sendJson(res, 400, { error: "地址无法识别。" });
   const method = req.method || "GET";
   if (method === "GET" && pathname === "/api/health") return sendJson(res, 200, { ok: true });
+  const limited = rateLimitFor(method, pathname);
+  if (limited && ctx.config.limiter) {
+    const verdict = ctx.config.limiter.take(limited, clientOf(req, ctx.config.trustProxy));
+    if (!verdict.ok) {
+      res.setHeader("Retry-After", String(verdict.retryAfter));
+      ctx.store.addEvent({ type: "rate_limited", kind: limited });
+      return sendJson(res, 429, { error: `操作太频繁了，请 ${verdict.retryAfter} 秒后再试。`, code: "rate_limited", retryAfter: verdict.retryAfter });
+    }
+  }
   if (method === "GET" && pathname === "/api/config") {
     return sendJson(res, 200, {
       product: "憩梦时光",
@@ -145,7 +187,7 @@ async function handle(req, res, ctx) {
     if (method === "POST" && parts[3] === "messages") return sendJson(res, 200, await gate(id, () => ctx.service.sendMessage(id, auth, body.text, body.via)));
     if (method === "POST" && parts[3] === "imports") return sendJson(res, 200, await gate(id, () => ctx.service.addImport(id, auth, body.text, body.kind)));
     if (method === "POST" && parts[3] === "profile") return sendJson(res, 200, await gate(id, () => ctx.service.generateProfile(id, auth)));
-    if (method === "POST" && parts[3] === "edits") return sendJson(res, 200, await gate(id, () => ctx.service.editProfile(id, auth, body.instruction)));
+    if (method === "POST" && parts[3] === "edits") return sendJson(res, 200, await gate(id, () => ctx.service.editProfile(id, auth, body.instruction, body.section)));
     if (method === "POST" && parts[3] === "publish") return sendJson(res, 200, await gate(id, () => ctx.service.publish(id, auth, body.slug, originOf(req, ctx.config))));
     return sendJson(res, 404, { error: "没有这个接口。" });
   }
@@ -197,6 +239,17 @@ async function handle(req, res, ctx) {
   }
   if (method !== "GET" && method !== "HEAD") return sendJson(res, 404, { error: "没有这个页面。" });
   return serveStatic(res, pathname);
+}
+
+// 哪些请求要限流、归到哪一类。只读的页面和文件不限。
+function rateLimitFor(method, pathname) {
+  if (method !== "POST") return "";
+  if (pathname === "/api/sessions") return "session";
+  if (pathname === "/api/events") return "event";
+  if (pathname === "/api/asr" || pathname === "/api/tts") return "voice";
+  if (/^\/api\/sites\/[^/]+\/ask$/.test(pathname)) return "ask";
+  if (/^\/api\/sessions\/[^/]+\/(turns|messages|imports|profile|edits)$/.test(pathname)) return "llm";
+  return "";
 }
 
 function sendPreview(req, res, ctx, id, token, opts = {}) {
